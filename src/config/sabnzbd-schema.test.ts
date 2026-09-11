@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { AppConfigSchema, ServiceIntegrationSchema } from './schema'
+import { AppConfigSchema, ServarrConfigSchema, ServiceIntegrationSchema } from './schema'
 
 describe('services.sabnzbd', () => {
   test('accepts a url and api key', () => {
@@ -64,5 +64,19 @@ describe('app.sabnzbd', () => {
 
   test('requires a host on a server', () => {
     expect(() => AppConfigSchema.parse({ sabnzbd: { servers: [{ name: 'news' }] } })).toThrow()
+  })
+})
+
+describe('servarr.type sabnzbd', () => {
+  test('is a deployable type so SABnzbd can run its own sidecar', () => {
+    const parsed = ServarrConfigSchema.parse({ type: 'sabnzbd', adminUser: 'admin' })
+
+    expect(parsed.type).toBe('sabnzbd')
+  })
+
+  test('needs no servarr url, like qbittorrent and bazarr', () => {
+    // SABnzbd is reached through services.sabnzbd; servarr.url addresses a
+    // Servarr API this deployment does not have.
+    expect(() => ServarrConfigSchema.parse({ type: 'sabnzbd' })).not.toThrow()
   })
 })

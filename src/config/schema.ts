@@ -22,7 +22,17 @@ export const ServarrConfigSchema = z
   .object({
     url: z.string().optional(),
     type: z
-      .enum(['sonarr', 'radarr', 'lidarr', 'readarr', 'prowlarr', 'qbittorrent', 'bazarr', 'auto'])
+      .enum([
+        'sonarr',
+        'radarr',
+        'lidarr',
+        'readarr',
+        'prowlarr',
+        'qbittorrent',
+        'bazarr',
+        'sabnzbd',
+        'auto',
+      ])
       .default('auto'),
     apiKey: z
       .string()
@@ -35,8 +45,10 @@ export const ServarrConfigSchema = z
   })
   .refine(
     (data) => {
-      // URL validation: required for all Servarr types except qbittorrent and bazarr
-      if (data.type !== 'qbittorrent' && data.type !== 'bazarr') {
+      // servarr.url addresses a Servarr API. qBittorrent, Bazarr and SABnzbd
+      // are not Servarr apps and are reached through their own services.*
+      // entry, so none of them has one to give.
+      if (data.type !== 'qbittorrent' && data.type !== 'bazarr' && data.type !== 'sabnzbd') {
         if (!data.url) {
           return false
         }
@@ -57,7 +69,7 @@ export const ServarrConfigSchema = z
   .refine(
     (data) => {
       // adminPassword validation: required for Servarr types, optional for qbittorrent and bazarr
-      if (data.type !== 'qbittorrent' && data.type !== 'bazarr') {
+      if (data.type !== 'qbittorrent' && data.type !== 'bazarr' && data.type !== 'sabnzbd') {
         if (!data.adminPassword) {
           return false
         }
@@ -65,7 +77,7 @@ export const ServarrConfigSchema = z
       return true
     },
     {
-      message: 'Admin password is required when type is not qbittorrent or bazarr',
+      message: 'Admin password is required when type is not qbittorrent, bazarr or sabnzbd',
       path: ['adminPassword'],
     },
   )

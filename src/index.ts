@@ -1,5 +1,6 @@
 import { BazarrManager } from '@/bazarr/client'
 import { type Config, loadConfigurationSafe } from '@/config'
+import { hasServarrApi } from '@/config/deployment'
 import { getEnvironmentInfo } from '@/config/loaders/env'
 import { ContextBuilder } from '@/core/context'
 import { ConfigurationEngine } from '@/core/engine'
@@ -31,12 +32,8 @@ class PrepArr {
     return this.config.servarr.type === 'bazarr'
   }
 
-  private get isQbittorrentDeployment(): boolean {
-    return this.config.servarr.type === 'qbittorrent'
-  }
-
   private createServarrClient(): ServarrManager | undefined {
-    if (this.isBazarrDeployment || this.isQbittorrentDeployment) {
+    if (!hasServarrApi(this.config.servarr.type)) {
       return undefined
     }
 
