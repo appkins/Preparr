@@ -1,4 +1,4 @@
-import { expect, test } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
 import { logger } from './logger'
 
 test('logger exports all methods', () => {
@@ -28,4 +28,37 @@ test('logger handles metadata correctly', () => {
   console.log = originalLog
   console.warn = originalWarn
   console.error = originalError
+})
+
+describe('logger error serialization', () => {
+  test('an Error in metadata keeps its message instead of becoming {}', () => {
+    // JSON.stringify drops Error fields -- they are non-enumerable -- so a
+    // plain `logger.error(msg, { error })` used to emit "error":{}, which says
+    // nothing about what went wrong.
+    const lines: string[] = []
+    const original = console.error
+    console.error = (line: string) => lines.push(line)
+
+    try {
+      logger.error('something failed', { error: new Error('the actual reason') })
+    } finally {
+      console.error = original
+    }
+
+    expect(lines.join('\n')).toContain('the actual reason')
+  })
+
+  test('keeps a nested Error inside metadata', () => {
+    const lines: string[] = []
+    const original = console.error
+    console.error = (line: string) => lines.push(line)
+
+    try {
+      logger.error('step failed', { details: { cause: new Error('nested reason') } })
+    } finally {
+      console.error = original
+    }
+
+    expect(lines.join('\n')).toContain('nested reason')
+  })
 })

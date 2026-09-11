@@ -11,7 +11,16 @@ import { logger } from '@/utils/logger'
 
 export interface ProwlarrExtrasConfig {
   url: string
-  apiKey: string
+
+  /**
+   * The key, or a resolver for it.
+   *
+   * A resolver exists because the key is not knowable when the step context is
+   * built: ServarrManager reads it during initialization and getApiKey()
+   * throws until then, so resolving eagerly fails the whole run before any
+   * step executes.
+   */
+  apiKey: string | (() => string)
 }
 
 export interface Tag {
@@ -47,6 +56,10 @@ export class ProwlarrExtrasClient {
     this.config = config
   }
 
+  private resolveApiKey(): string {
+    return typeof this.config.apiKey === 'function' ? this.config.apiKey() : this.config.apiKey
+  }
+
   private async request<T>(
     method: 'GET' | 'POST' | 'PUT',
     path: string,
@@ -55,7 +68,7 @@ export class ProwlarrExtrasClient {
     const response = await fetch(`${this.config.url.replace(/\/$/, '')}/api/v1/${path}`, {
       method,
       headers: {
-        'X-Api-Key': this.config.apiKey,
+        'X-Api-Key': this.resolveApiKey(),
         'Content-Type': 'application/json',
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),

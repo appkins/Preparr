@@ -8,14 +8,35 @@ const shouldLog = (level: LogLevel): boolean => {
   return levels[level] >= levels[logLevel as LogLevel]
 }
 
+/**
+ * An Error's own fields are non-enumerable, so JSON.stringify renders one as
+ * `{}` -- a log line that reports a failure and says nothing about it. This
+ * unpacks them wherever an Error appears in the metadata.
+ */
+const serializeErrors = (_key: string, value: unknown) => {
+  if (value instanceof Error) {
+    return {
+      name: value.name,
+      message: value.message,
+      ...(value.stack ? { stack: value.stack } : {}),
+      ...(value.cause ? { cause: value.cause } : {}),
+      // Carry any fields a subclass added, which do serialize normally --
+      // a Postgres error's code and severity, for instance.
+      ...Object.fromEntries(Object.entries(value)),
+    }
+  }
+
+  return value
+}
+
 const formatLog = (level: LogLevel, message: string, meta?: Record<string, unknown>) => {
   const timestamp = new Date().toISOString()
 
   if (logFormat === 'json') {
-    return JSON.stringify({ timestamp, level, message, ...meta })
+    return JSON.stringify({ timestamp, level, message, ...meta }, serializeErrors)
   }
 
-  const metaStr = meta ? ` ${JSON.stringify(meta)}` : ''
+  const metaStr = meta ? ` ${JSON.stringify(meta, serializeErrors)}` : ''
   return `${timestamp} [${level.toUpperCase()}]: ${message}${metaStr}`
 }
 

@@ -88,7 +88,10 @@ class PrepArr {
           this.config.servarr.type === 'prowlarr' && this.config.servarr.url
             ? new ProwlarrExtrasClient({
                 url: this.config.servarr.url,
-                apiKey: servarrClient?.getApiKey() ?? this.config.servarr.apiKey ?? '',
+                // Resolved per request, not here: getApiKey() throws until
+                // ServarrManager has initialized, and this runs before any
+                // step does -- which failed every prowlarr init outright.
+                apiKey: () => this.config.servarr.apiKey ?? servarrClient?.getApiKey() ?? '',
               })
             : undefined,
         )

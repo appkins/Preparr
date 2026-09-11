@@ -191,3 +191,38 @@ describe('ProwlarrExtrasClient.syncIndexerTags', () => {
     expect(result.skipped).toEqual(['Missing'])
   })
 })
+
+describe('ProwlarrExtrasClient api key resolution', () => {
+  test('accepts a resolver and calls it per request, not at construction', async () => {
+    stubApi({ tag: [] })
+    let resolved = 0
+
+    // The key is not knowable when the context is built: ServarrManager reads
+    // it during initialization and getApiKey() throws before that. Passing a
+    // resolver is what keeps constructing the client from throwing.
+    const client = new ProwlarrExtrasClient({
+      url: 'http://prowlarr:9696',
+      apiKey: () => {
+        resolved += 1
+        return 'resolved-key'
+      },
+    })
+
+    expect(resolved).toBe(0)
+
+    await client.ensureTags(['one'])
+
+    expect(resolved).toBeGreaterThan(0)
+  })
+
+  test('still accepts a plain string key', async () => {
+    stubApi({ tag: [{ id: 1, label: 'one' }] })
+
+    const ids = await new ProwlarrExtrasClient({
+      url: 'http://prowlarr:9696',
+      apiKey: 'k'.repeat(32),
+    }).ensureTags(['one'])
+
+    expect(ids.one).toBe(1)
+  })
+})
