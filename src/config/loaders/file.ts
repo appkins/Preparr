@@ -1,5 +1,6 @@
 import { file, TOML, YAML } from 'bun'
 import type { Config } from '../schema'
+import { expandEnvReferences } from './expand'
 
 export type ConfigFileFormat = 'yaml' | 'json' | 'toml'
 
@@ -47,7 +48,9 @@ export async function loadConfigFile(filePath: string): Promise<Partial<Config> 
         parsed = parseJSON(content)
     }
 
-    return parsed
+    // Applies to every format, after parsing: a substituted value containing a
+    // quote or backslash cannot then change the document's shape.
+    return parsed === null ? null : expandEnvReferences(parsed)
   } catch (error) {
     throw new Error(
       `Failed to load config file '${filePath}': ${error instanceof Error ? error.message : String(error)}`,

@@ -1,3 +1,4 @@
+// biome-ignore-all lint/suspicious/noTemplateCurlyInString: these are the literal ${VAR} placeholders under test, not template literals
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 import { detectFileFormat, findConfigFile, loadConfigFile } from './file'
 
@@ -363,5 +364,35 @@ describe('findConfigFile', () => {
       // Skip this test if we don't have permissions for /config
       // This is expected in many test environments
     }
+  })
+})
+
+describe('loadConfigFile environment substitution', () => {
+  const refFile = `${testDir}/with-refs.json`
+
+  test('expands ${VAR} references from the environment', async () => {
+    await Bun.write(
+      refFile,
+      JSON.stringify({ app: { sabnzbd: { servers: [{ password: '${NEWS_PASSWORD}' }] } } }),
+    )
+    process.env.NEWS_PASSWORD = 'from-the-secret'
+
+    const config = await loadConfigFile(refFile)
+
+    expect(
+      (config?.app as { sabnzbd: { servers: Array<{ password: string }> } }).sabnzbd.servers[0]
+        ?.password,
+    ).toBe('from-the-secret')
+
+    delete process.env.NEWS_PASSWORD
+  })
+
+  test('fails loudly when a referenced variable is unset', async () => {
+    await Bun.write(
+      refFile,
+      JSON.stringify({ app: { sabnzbd: { apiKey: '${NOT_SET_ANYWHERE}' } } }),
+    )
+
+    expect(loadConfigFile(refFile)).rejects.toThrow(/NOT_SET_ANYWHERE/)
   })
 })
