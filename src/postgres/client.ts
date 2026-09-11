@@ -9,12 +9,33 @@ interface RetryOptions {
   factor?: number
 }
 
+/**
+ * Connections each pool may open.
+ *
+ * Bun's SQL defaults to 10, and a sidecar holds its client for the life of the
+ * pod, so the default meant every deployed app parked ten idle connections on
+ * the server forever. With enough apps that exhausts max_connections and the
+ * next one to start is refused with 53300 -- which reads as a fault in
+ * whichever app happened to lose the race, not as a pooling problem here.
+ *
+ * Steps run sequentially, so a small pool costs nothing.
+ */
+export const POOL_MAX = 4
+
+/** Injectable so tests can observe which databases a run actually opens. */
+export type SqlFactory = (connectionString: string, options: { max: number }) => SQL
+
 export class PostgresClient {
   private config: PostgresConfig
   private db: SQL | null = null
   private adminDb: SQL | null = null
+  private createSql: SqlFactory
 
-  constructor(config: PostgresConfig) {
+  constructor(
+    config: PostgresConfig,
+    createSql: SqlFactory = (url, options) => new SQL(url, options),
+  ) {
+    this.createSql = createSql
     this.config = { ...config }
     if (process.env.POSTGRES_DB) {
       this.config.database = process.env.POSTGRES_DB
@@ -31,15 +52,26 @@ export class PostgresClient {
   private connect(): void {
     if (!this.db) {
       const connString = this.getConnectionString(this.config.database)
-      this.db = new SQL(connString)
+      this.db = this.createSql(connString, { max: POOL_MAX })
       logger.debug('Connected to application database', { database: this.config.database })
     }
+  }
 
+  /**
+   * The maintenance-database pool, opened on first use.
+   *
+   * Lazy because only provisioning needs it, and provisioning is skipped
+   * wherever something else owns the database lifecycle (CloudNativePG, an
+   * operator, a DBA). Opening it eagerly meant every deployment paid for a
+   * pool it would never issue a statement against.
+   */
+  private admin(): SQL {
     if (!this.adminDb) {
-      const adminConnString = this.getConnectionString('postgres')
-      this.adminDb = new SQL(adminConnString)
+      this.adminDb = this.createSql(this.getConnectionString('postgres'), { max: POOL_MAX })
       logger.debug('Connected to admin database')
     }
+
+    return this.adminDb
   }
 
   private async withRetry<T>(operation: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
@@ -80,11 +112,13 @@ export class PostgresClient {
     try {
       this.connect()
 
-      if (!this.adminDb) {
-        throw new Error('Admin database connection not established')
+      if (!this.db) {
+        throw new Error('Application database connection not established')
       }
 
-      const db = this.adminDb
+      // The application's own database, which is what every later step uses.
+      // Probing the maintenance database proved only that the server was up.
+      const db = this.db
       const result = await this.withRetry(async () => db`SELECT 1 as connected`, {
         maxRetries: 3,
         initialDelay: 500,
@@ -104,10 +138,6 @@ export class PostgresClient {
   async createDatabase(dbName: string): Promise<void> {
     this.connect()
 
-    if (!this.adminDb) {
-      throw new Error('Admin database connection not established')
-    }
-
     const exists = await this.databaseExists(dbName)
     if (exists) {
       logger.debug('Database already exists', { database: dbName })
@@ -117,7 +147,7 @@ export class PostgresClient {
     try {
       await this.withRetry(
         async () => {
-          await this.adminDb?.unsafe(`CREATE DATABASE ${dbName}`)
+          await this.admin().unsafe(`CREATE DATABASE ${dbName}`)
         },
         { maxRetries: 2, initialDelay: 500 },
       )
@@ -131,12 +161,8 @@ export class PostgresClient {
   async databaseExists(dbName: string): Promise<boolean> {
     this.connect()
 
-    if (!this.adminDb) {
-      throw new Error('Admin database connection not established')
-    }
-
     try {
-      const result = await this.adminDb`
+      const result = await this.admin()`
         SELECT 1 FROM pg_database WHERE datname = ${dbName}
       `
       return result.length > 0
@@ -149,15 +175,11 @@ export class PostgresClient {
   async createUser(username: string, password: string): Promise<void> {
     this.connect()
 
-    if (!this.adminDb) {
-      throw new Error('Admin database connection not established')
-    }
-
     const exists = await this.userExists(username)
     if (exists) {
       logger.debug('User already exists', { username })
       try {
-        await this.adminDb?.unsafe(`ALTER USER ${username} WITH ENCRYPTED PASSWORD '${password}'`)
+        await this.admin().unsafe(`ALTER USER ${username} WITH ENCRYPTED PASSWORD '${password}'`)
         logger.info('User password updated', { username })
       } catch (updateError) {
         logger.error('Failed to update user password', { username, error: updateError })
@@ -168,9 +190,7 @@ export class PostgresClient {
     try {
       await this.withRetry(
         async () => {
-          await this.adminDb?.unsafe(
-            `CREATE USER ${username} WITH ENCRYPTED PASSWORD '${password}'`,
-          )
+          await this.admin().unsafe(`CREATE USER ${username} WITH ENCRYPTED PASSWORD '${password}'`)
         },
         { maxRetries: 2, initialDelay: 500 },
       )
@@ -185,12 +205,8 @@ export class PostgresClient {
   async userExists(username: string): Promise<boolean> {
     this.connect()
 
-    if (!this.adminDb) {
-      throw new Error('Admin database connection not established')
-    }
-
     try {
-      const result = await this.adminDb`
+      const result = await this.admin()`
         SELECT 1 FROM pg_user WHERE usename = ${username}
       `
       return result.length > 0
@@ -203,15 +219,11 @@ export class PostgresClient {
   async grantPermissions(username: string, database: string): Promise<void> {
     this.connect()
 
-    if (!this.adminDb) {
-      throw new Error('Admin database connection not established')
-    }
-
     try {
       await this.withRetry(
         async () => {
-          await this.adminDb?.unsafe(`GRANT ALL PRIVILEGES ON DATABASE ${database} TO ${username}`)
-          const dbConnection = new SQL(this.getConnectionString(database))
+          await this.admin().unsafe(`GRANT ALL PRIVILEGES ON DATABASE ${database} TO ${username}`)
+          const dbConnection = this.createSql(this.getConnectionString(database), { max: POOL_MAX })
           await dbConnection.unsafe(`GRANT ALL ON SCHEMA public TO ${username}`)
           await dbConnection.unsafe(
             `GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ${username}`,

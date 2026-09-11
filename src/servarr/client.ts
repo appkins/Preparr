@@ -16,6 +16,13 @@ import { logger } from '@/utils/logger'
 import { withRetry } from '@/utils/retry'
 import { ServarrApiClient } from './api-client'
 import { ConfigXmlWriter } from './config-writer'
+import {
+  apiVersionFor,
+  buildRootFolderBody,
+  type Profile,
+  pickProfileId,
+  requiresProfiles,
+} from './root-folder-payload'
 import type {
   ClientCapabilities,
   ClientWithApplications,
@@ -472,6 +479,13 @@ export class ServarrManager {
         return
       }
 
+      // Readarr and Lidarr need a name and two profile ids alongside the path,
+      // which the generated client's path-only call cannot express.
+      if (requiresProfiles(this.config.type)) {
+        await this.addRootFolderWithProfiles(rootFolder)
+        return
+      }
+
       if (!this.hasRootFolders(this.client)) {
         throw new Error('Root folders not supported by this client')
       }
@@ -484,6 +498,66 @@ export class ServarrManager {
       logger.error('Failed to add root folder', { path: rootFolder.path, error })
       throw error
     }
+  }
+
+  /**
+   * POST a full root-folder resource for the apps that demand one.
+   *
+   * Profile ids come from the instance rather than the config so a deployment
+   * need not know the ids the app assigned itself on first run; anything set
+   * in the config still wins.
+   */
+  private async addRootFolderWithProfiles(rootFolder: RootFolder): Promise<void> {
+    const version = apiVersionFor(this.config.type)
+
+    const [quality, metadata] = await Promise.all([
+      this.fetchApiVersioned<Profile[]>(version, '/qualityprofile'),
+      this.fetchApiVersioned<Profile[]>(version, '/metadataprofile'),
+    ])
+
+    const body = buildRootFolderBody(rootFolder, {
+      qualityProfileId: pickProfileId(quality),
+      metadataProfileId: pickProfileId(metadata),
+    })
+
+    await this.fetchApiVersioned(version, '/rootfolder', { method: 'POST', body })
+
+    logger.info('Root folder added successfully', {
+      path: rootFolder.path,
+      name: body.name,
+      qualityProfileId: body.defaultQualityProfileId,
+      metadataProfileId: body.defaultMetadataProfileId,
+    })
+  }
+
+  /** fetchApi, but against the API version this app actually serves. */
+  private async fetchApiVersioned<T>(
+    version: 'v1' | 'v3',
+    endpoint: string,
+    options: { method?: string; body?: unknown } = {},
+  ): Promise<T> {
+    if (!this.apiKey) {
+      throw new Error('API key not available')
+    }
+
+    const response = await fetch(`${this.config.url}/api/${version}${endpoint}`, {
+      method: options.method ?? 'GET',
+      headers: {
+        'X-Api-Key': this.apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(
+        `API request failed: ${response.status} ${response.statusText} - ${errorText}`,
+      )
+    }
+
+    const text = await response.text()
+    return (text ? JSON.parse(text) : undefined) as T
   }
 
   async configureRootFolders(rootFolders: RootFolder[]): Promise<void> {

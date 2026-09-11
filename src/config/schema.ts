@@ -183,6 +183,13 @@ export const RootFolderSchema = z.object({
   accessible: z.boolean().default(true),
   freeSpace: z.number().optional(),
   unmappedFolders: z.array(z.string()).default([]),
+
+  // Readarr and Lidarr require these three; the rest of the family has no
+  // field for them. Left unset, the name is derived from the path and the
+  // profiles fall back to whatever the instance already has.
+  name: z.string().optional(),
+  defaultQualityProfileId: z.number().optional(),
+  defaultMetadataProfileId: z.number().optional(),
 })
 
 // Custom Format Specification Schema
