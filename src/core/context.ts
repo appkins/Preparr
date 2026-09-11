@@ -1,7 +1,9 @@
 import type { BazarrManager } from '@/bazarr/client'
 import type { Config } from '@/config/schema'
 import type { PostgresClient } from '@/postgres/client'
+import type { ProwlarrExtrasClient } from '@/prowlarr/client'
 import type { QBittorrentManager } from '@/qbittorrent/client'
+import type { SabnzbdManager } from '@/sabnzbd/client'
 import type { ServarrManager } from '@/servarr/client'
 import type { StepContext } from './step'
 
@@ -38,6 +40,16 @@ export class ContextBuilder {
     return this
   }
 
+  setProwlarrExtrasClient(client?: ProwlarrExtrasClient): this {
+    this.context.prowlarrExtrasClient = client
+    return this
+  }
+
+  setSabnzbdClient(client?: SabnzbdManager): this {
+    this.context.sabnzbdClient = client
+    return this
+  }
+
   setBazarrClient(client?: BazarrManager): this {
     this.context.bazarrClient = client
     return this
@@ -58,10 +70,11 @@ export class ContextBuilder {
     if (
       !this.context.servarrClient &&
       !this.context.bazarrClient &&
-      !this.context.qbittorrentClient
+      !this.context.qbittorrentClient &&
+      !this.context.sabnzbdClient
     ) {
       throw new Error(
-        'At least one of Servarr client, Bazarr client, or qBittorrent client is required',
+        'At least one of Servarr client, Bazarr client, qBittorrent client, or SABnzbd client is required',
       )
     }
     if (!this.context.servarrType) {

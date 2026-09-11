@@ -118,13 +118,13 @@ export const BazarrConfigSchema = z
   .object({
     sonarr: z
       .object({
-        url: z.string().url(),
+        url: z.url(),
         apiKey: z.string(),
       })
       .optional(),
     radarr: z
       .object({
-        url: z.string().url(),
+        url: z.url(),
         apiKey: z.string(),
       })
       .optional(),
@@ -139,20 +139,28 @@ export const BazarrConfigSchema = z
 export const ServiceIntegrationSchema = z.object({
   qbittorrent: z
     .object({
-      url: z.string().url(),
+      url: z.url(),
       username: z.string(),
       password: z.string(),
     })
     .optional(),
+  // Unlike qBittorrent there is no login handshake: every SABnzbd request
+  // carries the API key, so there is no username/password pair here.
+  sabnzbd: z
+    .object({
+      url: z.url(),
+      apiKey: z.string().optional(),
+    })
+    .optional(),
   prowlarr: z
     .object({
-      url: z.string().url(),
+      url: z.url(),
       apiKey: z.string().optional(),
     })
     .optional(),
   bazarr: z
     .object({
-      url: z.string().url(),
+      url: z.url(),
       apiKey: z.string().optional(),
     })
     .optional(),
@@ -356,6 +364,52 @@ export const QBittorrentConfigSchema = z
   })
   .optional()
 
+/**
+ * A SABnzbd category. `dir` is resolved relative to the completed directory,
+ * so "tv" lands at <completePath>/tv.
+ */
+export const SabnzbdCategorySchema = z.object({
+  name: z.string(),
+  dir: z.string().default(''),
+  // SABnzbd's "Low" priority, matching what its own defaults use for the
+  // per-media-type categories.
+  priority: z.number().default(-100),
+  script: z.string().default('Default'),
+  pp: z.string().optional(),
+})
+
+/**
+ * A Usenet server. SABnzbd cannot download at all without one, and it is the
+ * one part of its configuration with no default worth guessing.
+ */
+export const SabnzbdServerSchema = z.object({
+  name: z.string().optional(),
+  host: z.string(),
+  port: z.number().default(563),
+  username: z.string().optional(),
+  password: z.string().optional(),
+  connections: z.number().default(8),
+  ssl: z.boolean().default(true),
+  enable: z.boolean().default(true),
+  priority: z.number().default(0),
+  retention: z.number().optional(),
+})
+
+export const SabnzbdConfigSchema = z
+  .object({
+    downloads: z
+      .object({
+        // Relative paths resolve under SABnzbd's own config directory, which
+        // is rarely where the media volume is mounted, so both are explicit.
+        completePath: z.string().default('/downloads/complete'),
+        incompletePath: z.string().default('/downloads/incomplete'),
+      })
+      .optional(),
+    categories: z.array(SabnzbdCategorySchema).default([]),
+    servers: z.array(SabnzbdServerSchema).default([]),
+  })
+  .optional()
+
 export const ApplicationSchema = z.object({
   id: z.number().optional(),
   name: z.string(),
@@ -374,6 +428,39 @@ export const ApplicationSchema = z.object({
   tags: z.array(z.number()).default([]),
 })
 
+/**
+ * A Prowlarr indexer proxy (FlareSolverr, HTTP, SOCKS).
+ *
+ * `tags` are labels rather than ids: Prowlarr assigns tag ids itself and
+ * rejects a POST that carries a chosen one, so an id cannot be pinned from
+ * configuration. The labels are resolved against the live instance when the
+ * proxy is applied.
+ */
+export const IndexerProxySchema = z
+  .object({
+    id: z.number().optional(),
+    name: z.string(),
+    implementation: z.string(),
+    implementationName: z.string().optional(),
+    configContract: z.string(),
+    fields: z
+      .array(
+        z.object({
+          name: z.string(),
+          value: z.union([z.string(), z.number(), z.boolean()]),
+        }),
+      )
+      .default([]),
+    tags: z.array(z.string()).default([]),
+  })
+  // Prowlarr wants both implementation and implementationName and they are the
+  // same string for every built-in proxy; zod cannot default one from a
+  // sibling, so it is filled in here.
+  .transform((proxy) => ({
+    ...proxy,
+    implementationName: proxy.implementationName ?? proxy.implementation,
+  }))
+
 export const AppConfigSchema = z.object({
   apiKey: z.string().optional(),
   prowlarrSync: z.boolean().default(false),
@@ -383,6 +470,17 @@ export const AppConfigSchema = z.object({
   downloadClients: z.array(DownloadClientSchema).default([]),
   applications: z.array(ApplicationSchema).default([]),
   qbittorrent: QBittorrentConfigSchema,
+  sabnzbd: SabnzbdConfigSchema,
+
+  // Tag labels to ensure exist. Anything referenced by an indexer proxy or by
+  // indexerTags is created whether or not it is also listed here.
+  tags: z.array(z.string()).default([]),
+  indexerProxies: z.array(IndexerProxySchema).default([]),
+
+  // Indexer name => tag labels it should carry. Kept separate from the
+  // indexer definitions because IndexersStep matches on name only and has no
+  // update path, so an existing indexer would never be retagged otherwise.
+  indexerTags: z.record(z.string(), z.array(z.string())).default({}),
   // Custom Formats (Radarr/Sonarr v4+)
   customFormats: z.array(CustomFormatSchema).default([]),
   // Release Profiles (Sonarr only)
@@ -410,6 +508,9 @@ export const ConfigSchema = z.object({
     customFormats: [],
     releaseProfiles: [],
     qualityDefinitions: [],
+    tags: [],
+    indexerProxies: [],
+    indexerTags: {},
   }),
   health: z
     .object({
@@ -426,6 +527,10 @@ export const ConfigSchema = z.object({
 export type PostgresConfig = z.infer<typeof PostgresConfigSchema>
 export type ServarrConfig = z.infer<typeof ServarrConfigSchema>
 export type ServiceIntegration = z.infer<typeof ServiceIntegrationSchema>
+export type SabnzbdConfig = z.infer<typeof SabnzbdConfigSchema>
+export type SabnzbdCategory = z.infer<typeof SabnzbdCategorySchema>
+export type SabnzbdServer = z.infer<typeof SabnzbdServerSchema>
+export type IndexerProxy = z.infer<typeof IndexerProxySchema>
 export type RootFolder = z.infer<typeof RootFolderSchema>
 export type CustomFormatSpecification = z.infer<typeof CustomFormatSpecificationSchema>
 export type CustomFormat = z.infer<typeof CustomFormatSchema>

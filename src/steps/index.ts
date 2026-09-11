@@ -7,6 +7,7 @@ import { BazarrSubtitleDefaultsStep } from './bazarr/bazarr-subtitle-defaults'
 import { BazarrConnectivityStep } from './connectivity/bazarr-connectivity'
 import { PostgresConnectivityStep } from './connectivity/postgres-connectivity'
 import { QBittorrentConnectivityStep } from './connectivity/qbittorrent-connectivity'
+import { SabnzbdConnectivityStep } from './connectivity/sabnzbd-connectivity'
 import { ServarrConnectivityStep } from './connectivity/servarr-connectivity'
 import { BazarrConfigFileStep } from './infrastructure/bazarr-config-file'
 import { PostgresDatabasesStep } from './infrastructure/postgres-databases'
@@ -15,9 +16,11 @@ import { QBittorrentInitStep } from './infrastructure/qbittorrent-init'
 import { ServarrConfigFileStep } from './infrastructure/servarr-config-file'
 import { UserCreationStep } from './infrastructure/user-creation'
 import { QBittorrentConfigStep } from './integrations/qbittorrent-config'
+import { SabnzbdConfigStep } from './integrations/sabnzbd-config'
 import { ApplicationsStep } from './servarr/applications'
 import { CustomFormatsStep } from './servarr/custom-formats'
 import { DownloadClientsStep } from './servarr/download-clients'
+import { IndexerProxiesStep } from './servarr/indexer-proxies'
 import { IndexersStep } from './servarr/indexers'
 import { MediaManagementStep } from './servarr/media-management'
 import { NamingConfigStep } from './servarr/naming-config'
@@ -32,6 +35,7 @@ export const allSteps: ConfigurationStep[] = [
   new PostgresConnectivityStep(),
   new ServarrConnectivityStep(),
   new QBittorrentConnectivityStep(),
+  new SabnzbdConnectivityStep(),
   new BazarrConnectivityStep(),
   // Infrastructure (init mode)
   new PostgresDatabasesStep(),
@@ -45,6 +49,7 @@ export const allSteps: ConfigurationStep[] = [
   // Servarr configuration (sidecar mode)
   new RootFoldersStep(),
   new IndexersStep(),
+  new IndexerProxiesStep(),
   new DownloadClientsStep(),
   new CustomFormatsStep(),
   new QualityProfilesStep(),
@@ -55,6 +60,7 @@ export const allSteps: ConfigurationStep[] = [
   new ApplicationsStep(),
   // Integrations
   new QBittorrentConfigStep(),
+  new SabnzbdConfigStep(),
   // Bazarr
   new BazarrIntegrationStep(),
   new BazarrLanguagesStep(),

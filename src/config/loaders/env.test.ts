@@ -22,6 +22,7 @@ describe('loadEnvironmentConfig', () => {
         key.startsWith('LOG_') ||
         key.startsWith('HEALTH_') ||
         key.startsWith('QBITTORRENT_') ||
+        key.startsWith('SABNZBD_') ||
         key.startsWith('PROWLARR_')
       ) {
         delete process.env[key]
@@ -184,6 +185,15 @@ describe('loadEnvironmentConfig', () => {
     expect(config.servarr).toBeInstanceOf(Object)
     expect(config.services?.qbittorrent).toBeInstanceOf(Object)
   })
+  test('loads sabnzbd service configuration from environment', () => {
+    process.env.SABNZBD_URL = 'http://sabnzbd:8080'
+    process.env.SABNZBD_API_KEY = 'b'.repeat(32)
+
+    const config = loadEnvironmentConfig()
+
+    expect(config.services?.sabnzbd?.url).toBe('http://sabnzbd:8080')
+    expect(config.services?.sabnzbd?.apiKey).toBe('b'.repeat(32))
+  })
 })
 
 describe('getEnvironmentInfo', () => {
@@ -202,6 +212,7 @@ describe('getEnvironmentInfo', () => {
         key.startsWith('LOG_') ||
         key.startsWith('HEALTH_') ||
         key.startsWith('QBITTORRENT_') ||
+        key.startsWith('SABNZBD_') ||
         key.startsWith('PROWLARR_')
       ) {
         delete process.env[key]
@@ -278,6 +289,7 @@ function clearTestEnvVars() {
       key.startsWith('LOG_') ||
       key.startsWith('HEALTH_') ||
       key.startsWith('QBITTORRENT_') ||
+      key.startsWith('SABNZBD_') ||
       key.startsWith('PROWLARR_'),
   )
 

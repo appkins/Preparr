@@ -7,7 +7,9 @@ import { HealthServer } from '@/core/health'
 import { ReconciliationManager } from '@/core/reconciliation'
 import type { StepContext } from '@/core/step'
 import { PostgresClient } from '@/postgres/client'
+import { ProwlarrExtrasClient } from '@/prowlarr/client'
 import { QBittorrentManager } from '@/qbittorrent/client'
+import { SabnzbdManager } from '@/sabnzbd/client'
 import { ServarrManager } from '@/servarr/client'
 import { allSteps } from '@/steps'
 import { toError } from '@/utils/errors'
@@ -69,22 +71,39 @@ class PrepArr {
     const servarrClient = options?.servarrClient ?? this.createServarrClient()
     const bazarrClient = options?.bazarrClient ?? this.createBazarrClient()
 
-    return new ContextBuilder()
-      .setConfig(this.config)
-      .setServarrType(this.config.servarr.type)
-      .setPostgresClient(new PostgresClient(this.config.postgres))
-      .setServarrClient(servarrClient)
-      .setQBittorrentClient(
-        this.config.services?.qbittorrent
-          ? new QBittorrentManager(
-              this.config.services.qbittorrent,
-              '/shared-qbittorrent/qBittorrent.conf',
-            )
-          : undefined,
-      )
-      .setBazarrClient(bazarrClient)
-      .setExecutionMode(mode)
-      .build()
+    return (
+      new ContextBuilder()
+        .setConfig(this.config)
+        .setServarrType(this.config.servarr.type)
+        .setPostgresClient(new PostgresClient(this.config.postgres))
+        .setServarrClient(servarrClient)
+        .setQBittorrentClient(
+          this.config.services?.qbittorrent
+            ? new QBittorrentManager(
+                this.config.services.qbittorrent,
+                '/shared-qbittorrent/qBittorrent.conf',
+              )
+            : undefined,
+        )
+        // Tags and indexer proxies are Prowlarr-only, and the generated client
+        // has no routes for proxies, so they get their own small client.
+        .setProwlarrExtrasClient(
+          this.config.servarr.type === 'prowlarr' && this.config.servarr.url
+            ? new ProwlarrExtrasClient({
+                url: this.config.servarr.url,
+                apiKey: servarrClient?.getApiKey() ?? this.config.servarr.apiKey ?? '',
+              })
+            : undefined,
+        )
+        .setSabnzbdClient(
+          this.config.services?.sabnzbd
+            ? new SabnzbdManager(this.config.services.sabnzbd)
+            : undefined,
+        )
+        .setBazarrClient(bazarrClient)
+        .setExecutionMode(mode)
+        .build()
+    )
   }
 
   async initializeInfrastructure(): Promise<void> {

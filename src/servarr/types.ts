@@ -81,6 +81,7 @@ export interface DatabaseUser {
   Identifier: string
   Username: string
   Password: string
-  Salt: string
-  Iterations: number
+  /** Absent on Readarr, whose Users table predates salted hashing. */
+  Salt?: string
+  Iterations?: number
 }

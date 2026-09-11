@@ -2,6 +2,13 @@ import { SQL } from 'bun'
 import type { PostgresConfig, ServarrConfig } from '@/config/schema'
 import { logger } from '@/utils/logger'
 import type { ClientWithHostConfig, DatabaseUser, ServarrClientType } from './types'
+import {
+  type CredentialScheme,
+  credentialSchemeFor,
+  hashPassword,
+  newSalt,
+  passwordMatches,
+} from './user-credentials'
 
 export class ServarrUserManager {
   private config: ServarrConfig
@@ -10,6 +17,15 @@ export class ServarrUserManager {
   constructor(config: ServarrConfig, logDatabaseEnabled: boolean) {
     this.config = config
     this.logDatabaseEnabled = logDatabaseEnabled
+  }
+
+  /**
+   * How this app stores passwords. Readarr predates salted hashing and has no
+   * Salt/Iterations columns, so the statements below branch on this rather
+   * than assuming the salted schema.
+   */
+  private get credentialScheme(): CredentialScheme {
+    return credentialSchemeFor(this.config.type)
   }
 
   createDatabaseConnection(database?: string): SQL {
@@ -102,8 +118,16 @@ export class ServarrUserManager {
 
       try {
         // Get all users from database to check for duplicates
-        let allUsers =
-          (await db`SELECT "Id", "Identifier", "Username", "Password", "Salt", "Iterations" FROM "Users"`) as DatabaseUser[]
+        const scheme = this.credentialScheme
+
+        // Literal per scheme: selecting a column the table does not have fails
+        // the whole statement, and these are identifiers rather than values so
+        // they cannot be bound as parameters.
+        let allUsers = (
+          scheme === 'sha256'
+            ? await db`SELECT "Id", "Identifier", "Username", "Password" FROM "Users"`
+            : await db`SELECT "Id", "Identifier", "Username", "Password", "Salt", "Iterations" FROM "Users"`
+        ) as DatabaseUser[]
         const normalizedAdminUser = this.config.adminUser.toLowerCase()
 
         // Check if the desired admin user already exists
@@ -141,14 +165,20 @@ export class ServarrUserManager {
         if (!existingUser) {
           // Create new user
           const userId = crypto.randomUUID()
-          const salt = crypto.getRandomValues(new Uint8Array(16))
-          const saltBase64 = Buffer.from(salt).toString('base64')
-          const hashedPassword = await this.hashPassword(this.config.adminPassword, salt)
+          const salt = newSalt(scheme)
+          const hashedPassword = await hashPassword(scheme, this.config.adminPassword, salt)
 
-          await db`
-            INSERT INTO "Users" ("Identifier", "Username", "Password", "Salt", "Iterations")
-            VALUES (${userId}, ${normalizedAdminUser}, ${hashedPassword}, ${saltBase64}, 10000)
-          `
+          if (salt) {
+            await db`
+              INSERT INTO "Users" ("Identifier", "Username", "Password", "Salt", "Iterations")
+              VALUES (${userId}, ${normalizedAdminUser}, ${hashedPassword}, ${Buffer.from(salt).toString('base64')}, 10000)
+            `
+          } else {
+            await db`
+              INSERT INTO "Users" ("Identifier", "Username", "Password")
+              VALUES (${userId}, ${normalizedAdminUser}, ${hashedPassword})
+            `
+          }
 
           logger.info('Initial admin user created successfully', {
             username: this.config.adminUser,
@@ -156,13 +186,7 @@ export class ServarrUserManager {
           })
         } else {
           // User exists - check if password needs updating
-          if (
-            await this.checkPasswordChange(
-              this.config.adminPassword,
-              existingUser.Password,
-              existingUser.Salt,
-            )
-          ) {
+          if (!(await passwordMatches(scheme, this.config.adminPassword, existingUser))) {
             await this.updateUserPassword(db, this.config.adminUser, this.config.adminPassword)
             logger.info('Admin user password updated successfully', {
               username: this.config.adminUser,
@@ -194,50 +218,24 @@ export class ServarrUserManager {
     }
   }
 
-  async hashPassword(password: string, saltArray: Uint8Array): Promise<string> {
-    const encoder = new TextEncoder()
-    const passwordBytes = encoder.encode(password)
-    const key = await crypto.subtle.importKey('raw', passwordBytes, 'PBKDF2', false, ['deriveBits'])
-    // Create a new Uint8Array backed by a regular ArrayBuffer for PBKDF2 compatibility
-    const salt = new Uint8Array(saltArray.buffer.slice(0)) as Uint8Array<ArrayBuffer>
-    const hashBuffer = await crypto.subtle.deriveBits(
-      {
-        name: 'PBKDF2',
-        salt,
-        iterations: 10000,
-        hash: 'SHA-512',
-      },
-      key,
-      256,
-    )
-    return Buffer.from(hashBuffer).toString('base64')
-  }
-
-  async checkPasswordChange(
-    newPassword: string,
-    currentHash: string,
-    currentSalt: string,
-  ): Promise<boolean> {
-    try {
-      const saltBuffer = Buffer.from(currentSalt, 'base64')
-      const newHash = await this.hashPassword(newPassword, saltBuffer)
-      return newHash !== currentHash
-    } catch (_error) {
-      // If comparison fails, assume password needs updating for safety
-      return true
-    }
-  }
-
   async updateUserPassword(db: SQL, username: string, password: string): Promise<void> {
-    const salt = crypto.getRandomValues(new Uint8Array(16))
-    const saltBase64 = Buffer.from(salt).toString('base64')
-    const hashedPassword = await this.hashPassword(password, salt)
+    const scheme = this.credentialScheme
+    const salt = newSalt(scheme)
+    const hashedPassword = await hashPassword(scheme, password, salt)
 
-    await db`
-      UPDATE "Users"
-      SET "Password" = ${hashedPassword}, "Salt" = ${saltBase64}, "Iterations" = 10000
-      WHERE LOWER("Username") = LOWER(${username})
-    `
+    if (salt) {
+      await db`
+        UPDATE "Users"
+        SET "Password" = ${hashedPassword}, "Salt" = ${Buffer.from(salt).toString('base64')}, "Iterations" = 10000
+        WHERE LOWER("Username") = LOWER(${username})
+      `
+    } else {
+      await db`
+        UPDATE "Users"
+        SET "Password" = ${hashedPassword}
+        WHERE LOWER("Username") = LOWER(${username})
+      `
+    }
   }
 
   async createInitialUserInInitMode(): Promise<void> {
@@ -265,31 +263,22 @@ export class ServarrUserManager {
       }
 
       const userId = crypto.randomUUID()
-      const salt = crypto.getRandomValues(new Uint8Array(16))
-      const saltBase64 = Buffer.from(salt).toString('base64')
+      const scheme = this.credentialScheme
+      const salt = newSalt(scheme)
+      const hashedPassword = await hashPassword(scheme, this.config.adminPassword ?? '', salt)
+      const username = this.config.adminUser.toLowerCase()
 
-      const encoder = new TextEncoder()
-      const passwordBytes = encoder.encode(this.config.adminPassword)
-      const key = await crypto.subtle.importKey('raw', passwordBytes, 'PBKDF2', false, [
-        'deriveBits',
-      ])
-      const hashBuffer = await crypto.subtle.deriveBits(
-        {
-          name: 'PBKDF2',
-          salt: salt,
-          iterations: 10000,
-          hash: 'SHA-512',
-        },
-        key,
-        256,
-      )
-
-      const hashedPassword = Buffer.from(hashBuffer).toString('base64')
-
-      await db`
-        INSERT INTO "Users" ("Identifier", "Username", "Password", "Salt", "Iterations")
-        VALUES (${userId}, ${this.config.adminUser.toLowerCase()}, ${hashedPassword}, ${saltBase64}, 10000)
-      `
+      if (salt) {
+        await db`
+          INSERT INTO "Users" ("Identifier", "Username", "Password", "Salt", "Iterations")
+          VALUES (${userId}, ${username}, ${hashedPassword}, ${Buffer.from(salt).toString('base64')}, 10000)
+        `
+      } else {
+        await db`
+          INSERT INTO "Users" ("Identifier", "Username", "Password")
+          VALUES (${userId}, ${username}, ${hashedPassword})
+        `
+      }
 
       db.close()
 

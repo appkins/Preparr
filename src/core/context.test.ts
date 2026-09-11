@@ -56,4 +56,49 @@ describe('ContextBuilder', () => {
     expect(context.servarrType).toBe('qbittorrent')
     expect(context.qbittorrentClient).toBeDefined()
   })
+
+  test('accepts a sabnzbd client as the only service client', () => {
+    const config = {
+      postgres: {
+        host: 'localhost',
+        port: 5432,
+        username: 'postgres',
+        password: 'x',
+        database: 'sabnzbd',
+        logDatabaseEnabled: false,
+        skipProvisioning: true,
+      },
+      servarr: {
+        type: 'sabnzbd',
+        adminUser: 'admin',
+        authenticationMethod: 'forms',
+      },
+      app: {
+        prowlarrSync: false,
+        rootFolders: [],
+        qualityProfiles: [],
+        downloadClients: [],
+        applications: [],
+        customFormats: [],
+        releaseProfiles: [],
+        qualityDefinitions: [],
+      },
+      health: { port: 8080 },
+      logLevel: 'info',
+      logFormat: 'json',
+      configPath: '/config/sabnzbd.json',
+      configWatch: true,
+      configReconcileInterval: 60,
+    } as unknown as import('@/config/schema').Config
+
+    const context = new ContextBuilder()
+      .setConfig(config)
+      .setServarrType('sabnzbd')
+      .setPostgresClient({} as unknown as import('@/postgres/client').PostgresClient)
+      .setSabnzbdClient({} as unknown as import('@/sabnzbd/client').SabnzbdManager)
+      .setExecutionMode('sidecar')
+      .build()
+
+    expect(context.sabnzbdClient).toBeDefined()
+  })
 })

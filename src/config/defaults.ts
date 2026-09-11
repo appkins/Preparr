@@ -55,6 +55,11 @@ export const envMapping = {
   QBITTORRENT_USERNAME: 'services.qbittorrent.username', // Alternative name
   QBITTORRENT_PASSWORD: 'services.qbittorrent.password',
 
+  // SABnzbd authenticates with a key rather than a login, so there is no
+  // username/password pair here as there is for qBittorrent above.
+  SABNZBD_URL: 'services.sabnzbd.url',
+  SABNZBD_API_KEY: 'services.sabnzbd.apiKey',
+
   PROWLARR_URL: 'services.prowlarr.url',
   PROWLARR_API_KEY: 'services.prowlarr.apiKey',
 
