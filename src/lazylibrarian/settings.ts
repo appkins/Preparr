@@ -42,6 +42,18 @@ export function settingsFor(config: LazyLibrarianConfig): Settings {
     DOWNLOAD_DIR: config.downloadDir,
   })
 
+  if (config.autoAdd) {
+    put(settings, 'General', {
+      IMP_AUTOADD: config.autoAdd.directory,
+
+      // Defaulted here as well as in the schema: the schema's default only
+      // applies to a document it parsed, and copying is the safe answer --
+      // moving hands away the only copy of a book just filed.
+      IMP_AUTOADD_COPY: bool(config.autoAdd.copy ?? true),
+      IMP_AUTOADD_BOOKONLY: bool(config.autoAdd.bookOnly ?? false),
+    })
+  }
+
   if (config.apiKey) {
     // The key alone does nothing; the API has to be switched on as well, and
     // Prowlarr cannot reach the instance until it is.

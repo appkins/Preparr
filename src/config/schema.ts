@@ -160,6 +160,24 @@ export const LazyLibrarianConfigSchema = z.object({
     })
     .optional(),
 
+  /**
+   * A directory to drop a copy of each finished book into, for something else
+   * to pick up -- a Calibre library watcher, typically.
+   *
+   * Copying rather than moving by default: whatever watches such a directory
+   * generally deletes what it finds, and moving would hand away the only copy
+   * of a book LazyLibrarian has just filed into its own library.
+   */
+  autoAdd: z
+    .object({
+      directory: z.string(),
+      copy: z.boolean().default(true),
+
+      /** Hand over the book file alone, without its cover and metadata. */
+      bookOnly: z.boolean().default(false),
+    })
+    .optional(),
+
   sabnzbd: LazyLibrarianSabnzbdSchema.optional(),
   qbittorrent: LazyLibrarianQbittorrentSchema.optional(),
   calibre: LazyLibrarianCalibreSchema.optional(),

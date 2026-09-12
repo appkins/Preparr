@@ -120,6 +120,32 @@ describe('settingsFor', () => {
     expect(s.Calibre?.IMP_CALIBRE_COMIC).toBe('1')
   })
 
+  test('an auto-add directory is set, and copies rather than moves', () => {
+    // A copy is what makes the handoff safe: whatever watches that directory
+    // consumes and deletes what it finds there, and moving would hand away
+    // the only copy of a book LazyLibrarian has just filed.
+    const s = settingsFor({ autoAdd: { directory: '/data/media/calibre/ingest' } })
+
+    expect(s.General?.IMP_AUTOADD).toBe('/data/media/calibre/ingest')
+    expect(s.General?.IMP_AUTOADD_COPY).toBe('1')
+  })
+
+  test('moving instead of copying is possible but must be asked for', () => {
+    const s = settingsFor({ autoAdd: { directory: '/x', copy: false } })
+
+    expect(s.General?.IMP_AUTOADD_COPY).toBe('0')
+  })
+
+  test('the book alone can be handed over, without the cover and metadata', () => {
+    const s = settingsFor({ autoAdd: { directory: '/x', bookOnly: true } })
+
+    expect(s.General?.IMP_AUTOADD_BOOKONLY).toBe('1')
+  })
+
+  test('no auto-add directory leaves the setting alone entirely', () => {
+    expect(settingsFor({ ebookDir: '/x' }).General).not.toHaveProperty('IMP_AUTOADD')
+  })
+
   test('extra settings pass through for anything not modelled', () => {
     const s = settingsFor({ extra: { Postprocess: { KEEP_OPF: '1' } } })
 
