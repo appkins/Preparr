@@ -6,6 +6,7 @@ import {
   type StepResult,
   type Warning,
 } from '@/core/step'
+import { customFormatMatches } from '@/servarr/custom-format-compare'
 import { toError } from '@/utils/errors'
 import { logger } from '@/utils/logger'
 
@@ -120,20 +121,7 @@ export class CustomFormatsStep extends ServarrStep {
   }
 
   private needsUpdate(current: CustomFormat, desired: CustomFormat): boolean {
-    // Compare specifications count
-    if ((current.specifications?.length || 0) !== (desired.specifications?.length || 0)) {
-      return true
-    }
-
-    // Compare includeCustomFormatWhenRenaming
-    if (current.includeCustomFormatWhenRenaming !== desired.includeCustomFormatWhenRenaming) {
-      return true
-    }
-
-    // Deep compare specifications (simplified)
-    const currentSpecs = JSON.stringify(current.specifications || [])
-    const desiredSpecs = JSON.stringify(desired.specifications || [])
-    return currentSpecs !== desiredSpecs
+    return !customFormatMatches(current, desired)
   }
 
   async executeChanges(changes: ChangeRecord[], context: StepContext): Promise<StepResult> {

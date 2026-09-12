@@ -6,6 +6,7 @@ import {
   type StepResult,
   type Warning,
 } from '@/core/step'
+import { isMaskedSecret } from '@/servarr/masked'
 import { toError } from '@/utils/errors'
 import { logger } from '@/utils/logger'
 
@@ -199,6 +200,14 @@ export class DownloadClientsStep extends ServarrStep {
     // Only compare desired keys to avoid false positives due to extra server defaults
     for (const [name, desiredValue] of desiredFieldMap) {
       const currentValue = currentFieldMap.get(name)
+
+      // A secret the app will not disclose reads back as "********". It says
+      // nothing about whether the value changed, and treating it as a
+      // difference rebuilt the client on every pass.
+      if (isMaskedSecret(currentValue)) {
+        continue
+      }
+
       if (currentValue !== desiredValue) {
         return true
       }
