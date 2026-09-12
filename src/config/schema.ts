@@ -222,23 +222,61 @@ export const FormatItemSchema = z.object({
   score: z.number(),
 })
 
+export const TrashScoreSchema = z.object({
+  trashId: z.string(),
+
+  // Omitted means "whatever the guide scores it", which is the usual case --
+  // the point of referencing the guide is not having to hold an opinion.
+  score: z.number().optional(),
+})
+
 export const QualityProfileSchema = z.object({
   name: z.string(),
-  cutoff: z.number(),
-  items: z.array(
-    z.object({
-      quality: z.object({
-        id: z.number(),
-        name: z.string(),
-      }),
-      allowed: z.boolean(),
-    }),
-  ),
-  // Custom Format integration
+
+  /**
+   * Quality and quality-group names, most preferred first.
+   *
+   * Names rather than ids because the ids are assigned per instance and
+   * differ between Radarr and Sonarr; they are resolved against the
+   * instance's own profile schema, which is also where the groups the app
+   * ships with ("WEB 1080p") come from.
+   */
+  qualities: z.array(z.string()).default([]),
+
+  /** Defaults to the most preferred entry in `qualities`. */
+  cutoffQuality: z.string().optional(),
+
+  /**
+   * Which of the guide's score sets to read, e.g. sqp-1-1080p. The sets are
+   * sparse -- they list only the formats they score differently -- so
+   * anything a set omits still takes the default.
+   */
+  scoreSet: z.string().optional(),
+
+  /** Custom formats to score straight from the guide, by trash id. */
+  trashScores: z.array(TrashScoreSchema).default([]),
+
+  // Custom Format integration, by name. Guide-sourced entries are resolved
+  // into this list before any step runs.
   formatItems: z.array(FormatItemSchema).default([]),
   minFormatScore: z.number().default(0),
   cutoffFormatScore: z.number().default(0),
   upgradeAllowed: z.boolean().default(true),
+
+  // Superseded by `qualities`/`cutoffQuality`, kept so a profile written
+  // against literal ids still parses.
+  cutoff: z.number().optional(),
+  items: z
+    .array(
+      z.object({
+        quality: z.object({
+          id: z.number(),
+          name: z.string(),
+        }),
+        allowed: z.boolean(),
+      }),
+    )
+    .optional(),
 })
 
 // Release Profile Schema (Sonarr only)
@@ -490,6 +528,15 @@ export const AppConfigSchema = z.object({
   prowlarrSync: z.boolean().default(false),
   rootFolders: z.array(RootFolderSchema).default([]),
   qualityProfiles: z.array(QualityProfileSchema).default([]),
+
+  /**
+   * Custom formats to create from the TRaSH Guides, by trash id.
+   *
+   * Anything a quality profile scores by trash id is created without needing
+   * to be listed here as well; this is for formats that should exist whether
+   * or not a profile scores them.
+   */
+  trashCustomFormats: z.array(z.string()).default([]),
   indexers: z.array(IndexerSchema).optional(),
   downloadClients: z.array(DownloadClientSchema).default([]),
   applications: z.array(ApplicationSchema).default([]),
@@ -530,6 +577,7 @@ export const ConfigSchema = z.object({
     downloadClients: [],
     applications: [],
     customFormats: [],
+    trashCustomFormats: [],
     releaseProfiles: [],
     qualityDefinitions: [],
     tags: [],

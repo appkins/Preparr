@@ -17,6 +17,7 @@ import { withRetry } from '@/utils/retry'
 import { ServarrApiClient } from './api-client'
 import { ConfigXmlWriter } from './config-writer'
 import { redactSecretFields, resolveIndexerRedirect } from './indexer-payload'
+import type { ProfileSchema } from './quality-profile-builder'
 import {
   apiVersionFor,
   buildRootFolderBody,
@@ -1224,6 +1225,47 @@ export class ServarrManager {
       logger.error('Failed to configure applications', { error })
       throw error
     }
+  }
+
+  // ============================================
+  // Quality Profiles
+  // ============================================
+
+  /**
+   * The blank profile the instance builds for a new one.
+   *
+   * It carries every quality the app knows, already grouped, and every custom
+   * format currently defined at score zero -- which is what makes it possible
+   * to write a profile in names rather than in this instance's ids.
+   */
+  getQualityProfileSchema(): Promise<ProfileSchema> {
+    return this.fetchApiVersioned<ProfileSchema>(
+      apiVersionFor(this.config.type),
+      '/qualityprofile/schema',
+    )
+  }
+
+  getQualityProfiles(): Promise<Array<ProfileSchema & { id: number }>> {
+    return this.fetchApiVersioned<Array<ProfileSchema & { id: number }>>(
+      apiVersionFor(this.config.type),
+      '/qualityprofile',
+    )
+  }
+
+  addQualityProfile(profile: ProfileSchema): Promise<ProfileSchema> {
+    return this.fetchApiVersioned<ProfileSchema>(
+      apiVersionFor(this.config.type),
+      '/qualityprofile',
+      { method: 'POST', body: profile },
+    )
+  }
+
+  updateQualityProfile(id: number, profile: ProfileSchema): Promise<ProfileSchema> {
+    return this.fetchApiVersioned<ProfileSchema>(
+      apiVersionFor(this.config.type),
+      `/qualityprofile/${id}`,
+      { method: 'PUT', body: { ...profile, id } },
+    )
   }
 
   // Helper method for direct API calls

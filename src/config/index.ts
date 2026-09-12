@@ -3,6 +3,7 @@ import { defaultConfig } from './defaults'
 import { generateHelpText, parseCliArgs } from './loaders/cli'
 import { loadEnvironmentConfig } from './loaders/env'
 import { findConfigFile, loadConfigFile } from './loaders/file'
+import { resolveTrashReferences } from './loaders/trash'
 import {
   createConfigurationSource,
   mergeConfigsWithEnvOverride,
@@ -88,10 +89,15 @@ export async function loadConfiguration(args?: string[]): Promise<ConfigurationR
     throw new Error(`Configuration schema validation failed: ${error}`)
   }
 
+  // After validation because it reads the parsed shape, and before the steps
+  // because they must not know the guides exist. A configuration that
+  // references no trash id does no network I/O here.
+  const resolvedConfig = await resolveTrashReferences(validatedConfig)
+
   const sources = createConfigurationSource(defaultConfig, fileConfig, envConfig, cliArgs.config)
 
   return {
-    config: validatedConfig,
+    config: resolvedConfig,
     sources,
     metadata: {
       configFilePath,
