@@ -2,22 +2,23 @@ import { describe, expect, test } from 'bun:test'
 import { hasServarrApi } from './deployment'
 
 describe('hasServarrApi', () => {
-  test('is true for the Servarr apps', () => {
-    for (const type of ['sonarr', 'radarr', 'lidarr', 'readarr', 'prowlarr'] as const) {
+  test('the Servarr applications have one', () => {
+    for (const type of ['sonarr', 'radarr', 'lidarr', 'readarr', 'prowlarr']) {
       expect(hasServarrApi(type)).toBe(true)
     }
   })
 
-  test('is false for the download clients and bazarr', () => {
-    // These are reached through their own services.* entry and have no
-    // Servarr API, so constructing a ServarrManager for them would point at
-    // an endpoint that does not exist.
-    for (const type of ['qbittorrent', 'bazarr', 'sabnzbd'] as const) {
-      expect(hasServarrApi(type)).toBe(false)
-    }
+  test('an unset type is treated as one, since it defaults to auto', () => {
+    // Answering false here would skip the very checks a configuration with no
+    // type stated is most likely to need.
+    expect(hasServarrApi(undefined)).toBe(true)
   })
 
-  test('is true for auto, which resolves to a Servarr app at runtime', () => {
-    expect(hasServarrApi('auto')).toBe(true)
+  test('the applications that are not Servarr do not', () => {
+    // Answering true for one of these builds a ServarrManager pointed at an
+    // endpoint that does not exist, and it waits for it to appear for ever.
+    for (const type of ['qbittorrent', 'bazarr', 'sabnzbd', 'lazylibrarian']) {
+      expect(hasServarrApi(type)).toBe(false)
+    }
   })
 })

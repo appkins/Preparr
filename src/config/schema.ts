@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { hasServarrApi } from './deployment'
 
 export const PostgresConfigSchema = z.object({
   host: z.string().default('localhost'),
@@ -49,12 +50,7 @@ export const ServarrConfigSchema = z
       // servarr.url addresses a Servarr API. qBittorrent, Bazarr and SABnzbd
       // are not Servarr apps and are reached through their own services.*
       // entry, so none of them has one to give.
-      if (
-        data.type !== 'qbittorrent' &&
-        data.type !== 'bazarr' &&
-        data.type !== 'sabnzbd' &&
-        data.type !== 'lazylibrarian'
-      ) {
+      if (hasServarrApi(data.type)) {
         if (!data.url) {
           return false
         }
@@ -75,12 +71,7 @@ export const ServarrConfigSchema = z
   .refine(
     (data) => {
       // adminPassword validation: required for Servarr types, optional for qbittorrent and bazarr
-      if (
-        data.type !== 'qbittorrent' &&
-        data.type !== 'bazarr' &&
-        data.type !== 'sabnzbd' &&
-        data.type !== 'lazylibrarian'
-      ) {
+      if (hasServarrApi(data.type)) {
         if (!data.adminPassword) {
           return false
         }
