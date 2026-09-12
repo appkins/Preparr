@@ -120,7 +120,18 @@ export const LazyLibrarianQbittorrentSchema = z.object({
 })
 
 export const LazyLibrarianCalibreSchema = z.object({
+  /** Whether books are filed into a Calibre library at all. */
   enabled: z.boolean().default(true),
+
+  /**
+   * Whether that library is reached through a Calibre content server.
+   *
+   * Off by default: calibredb against a library directory needs nothing
+   * listening, which is the arrangement when the library sits on a volume
+   * shared with whatever else reads it.
+   */
+  useServer: z.boolean().default(false),
+
   server: z.string().optional(),
   username: z.string().optional(),
   password: z.string().optional(),

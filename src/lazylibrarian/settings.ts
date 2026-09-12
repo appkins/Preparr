@@ -80,17 +80,19 @@ export function settingsFor(config: LazyLibrarianConfig): Settings {
   }
 
   if (config.calibre) {
+    // Two separate questions: whether anything is filed into Calibre, and
+    // whether that goes through a content server. Running calibredb against a
+    // library directory is the usual answer to the second and needs nothing
+    // listening, so the two are not tied together.
     put(settings, 'Calibre', {
-      CALIBRE_USE_SERVER: bool(config.calibre.enabled),
+      IMP_CALIBRE_EBOOK: bool(config.calibre.enabled),
+      IMP_CALIBRE_COMIC: bool(config.calibre.enabled && (config.comics?.enabled ?? false)),
+
+      CALIBRE_USE_SERVER: bool(config.calibre.useServer),
       CALIBRE_SERVER: config.calibre.server,
       CALIBRE_USER: config.calibre.username,
       CALIBRE_PASS: config.calibre.password,
       IMP_CALIBREDB: config.calibre.databasePath,
-
-      // Importing through Calibre is the point of pointing at it; without
-      // these the server is configured and nothing is ever filed into it.
-      ...(config.calibre.enabled ? { IMP_CALIBRE_EBOOK: '1' } : {}),
-      ...(config.calibre.enabled && config.comics?.enabled ? { IMP_CALIBRE_COMIC: '1' } : {}),
     })
   }
 

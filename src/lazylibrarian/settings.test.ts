@@ -80,9 +80,14 @@ describe('settingsFor', () => {
     expect(s.TORRENT).toBeUndefined()
   })
 
-  test('Calibre is pointed at its server and told what to import', () => {
+  test('Calibre can be pointed at a content server', () => {
     const s = settingsFor({
-      calibre: { enabled: true, server: 'http://calibre:8081', databasePath: '/usr/bin/calibredb' },
+      calibre: {
+        enabled: true,
+        useServer: true,
+        server: 'http://calibre:8081',
+        databasePath: '/usr/bin/calibredb',
+      },
     })
 
     expect(s.Calibre).toMatchObject({
@@ -91,6 +96,28 @@ describe('settingsFor', () => {
       IMP_CALIBREDB: '/usr/bin/calibredb',
       IMP_CALIBRE_EBOOK: '1',
     })
+  })
+
+  test('Calibre importing works without a server, through calibredb', () => {
+    // Whether a content server is used and whether books are filed into
+    // Calibre at all are different questions. Running calibredb against a
+    // library on a shared volume needs nothing listening anywhere.
+    const s = settingsFor({ calibre: { enabled: true, useServer: false } })
+
+    expect(s.Calibre?.IMP_CALIBRE_EBOOK).toBe('1')
+    expect(s.Calibre?.CALIBRE_USE_SERVER).toBe('0')
+  })
+
+  test('Calibre off means nothing is filed into it', () => {
+    const s = settingsFor({ calibre: { enabled: false } })
+
+    expect(s.Calibre?.IMP_CALIBRE_EBOOK).toBe('0')
+  })
+
+  test('comics are filed into Calibre too when both are on', () => {
+    const s = settingsFor({ calibre: { enabled: true }, comics: { enabled: true } })
+
+    expect(s.Calibre?.IMP_CALIBRE_COMIC).toBe('1')
   })
 
   test('extra settings pass through for anything not modelled', () => {
