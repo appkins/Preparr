@@ -14,6 +14,7 @@ import type {
 } from '@/config/schema'
 import { logger } from '@/utils/logger'
 import { withRetry } from '@/utils/retry'
+import type { AdminUserState } from './admin-user-state'
 import { ServarrApiClient } from './api-client'
 import { ConfigXmlWriter } from './config-writer'
 import { redactSecretFields, resolveIndexerRedirect } from './indexer-payload'
@@ -366,6 +367,14 @@ export class ServarrManager {
 
   checkServarrTablesInitialized(): Promise<boolean> {
     return this.userManager.checkServarrTablesInitialized()
+  }
+
+  adminUserState(): Promise<AdminUserState> {
+    if (!this.isInitialized) {
+      throw new Error('ServarrManager must be initialized before reading user state')
+    }
+
+    return this.userManager.adminUserState()
   }
 
   createInitialUser(): Promise<void> {

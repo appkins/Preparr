@@ -1,6 +1,7 @@
 import { SQL } from 'bun'
 import type { PostgresConfig, ServarrConfig } from '@/config/schema'
 import { logger } from '@/utils/logger'
+import type { AdminUserState } from './admin-user-state'
 import type { ClientWithHostConfig, DatabaseUser, ServarrClientType } from './types'
 import {
   type CredentialScheme,
@@ -100,6 +101,46 @@ export class ServarrUserManager {
     } catch (error) {
       logger.error('Failed to check database tables', { error })
       return false
+    }
+  }
+
+  /**
+   * Whether the admin user is already as configured.
+   *
+   * Reads the same rows createInitialUser would, so the step can tell whether
+   * that call has anything to do rather than making it unconditionally and
+   * reporting a change whatever it found.
+   */
+  async adminUserState(): Promise<AdminUserState> {
+    if (!this.config.adminPassword) {
+      // createInitialUser returns early without one, so there is nothing
+      // outstanding to report.
+      return { exists: true, passwordCurrent: true, duplicates: 0 }
+    }
+
+    const db = this.createDatabaseConnection()
+
+    try {
+      const scheme = this.credentialScheme
+
+      const allUsers = (
+        scheme === 'sha256'
+          ? await db`SELECT "Id", "Identifier", "Username", "Password" FROM "Users"`
+          : await db`SELECT "Id", "Identifier", "Username", "Password", "Salt", "Iterations" FROM "Users"`
+      ) as DatabaseUser[]
+
+      const normalized = this.config.adminUser.toLowerCase()
+      const existing = allUsers.find((user) => user.Username.toLowerCase() === normalized)
+
+      return {
+        exists: existing !== undefined,
+        passwordCurrent:
+          existing !== undefined &&
+          (await passwordMatches(scheme, this.config.adminPassword, existing)),
+        duplicates: allUsers.filter((user) => user.Username.toLowerCase() !== normalized).length,
+      }
+    } finally {
+      db.close()
     }
   }
 
