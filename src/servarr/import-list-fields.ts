@@ -77,3 +77,27 @@ export function importListMatches(
       return have.has(key) && sameValue(have.get(key), field.value)
     })
 }
+
+/**
+ * The id of a quality profile named by a deployment.
+ *
+ * Import lists reference a profile by id, and the ids are assigned by the
+ * instance. Naming one and resolving it here is the difference between a list
+ * attached to the profile that was meant and a list attached to whichever
+ * profile happened to be first -- usually "Any", which accepts anything it is
+ * offered.
+ */
+export function resolveQualityProfileId(
+  name: string,
+  profiles: Array<{ id: number; name: string }>,
+): number {
+  const match = profiles.find((profile) => profile.name === name)
+
+  if (!match) {
+    throw new Error(
+      `No quality profile named "${name}" on this instance; import list cannot be attached to it`,
+    )
+  }
+
+  return match.id
+}

@@ -6,7 +6,11 @@ import {
   type StepResult,
   Warning,
 } from '@/core/step'
-import { importListMatches, withInstanceOwnedFields } from '@/servarr/import-list-fields'
+import {
+  importListMatches,
+  resolveQualityProfileId,
+  withInstanceOwnedFields,
+} from '@/servarr/import-list-fields'
 import { toError } from '@/utils/errors'
 import { logger } from '@/utils/logger'
 
@@ -85,6 +89,11 @@ export class ImportListsStep extends ServarrStep {
     const desired = this.getDesiredState(context)
     const current = await this.readCurrentState(context)
 
+    // Only fetched when something actually names a profile, so an instance
+    // with no such list pays nothing for this.
+    const needsProfiles = desired.some((l) => typeof l.qualityProfileName === 'string')
+    const profiles = needsProfiles ? await this.client.getQualityProfiles() : []
+
     for (const change of changes) {
       try {
         const list = desired.find((l) => l.name === change.identifier)
@@ -98,7 +107,19 @@ export class ImportListsStep extends ServarrStep {
         // Whatever the instance holds and the configuration does not set --
         // in practice the OAuth tokens, which no configuration can produce.
         const fields = withInstanceOwnedFields(existing?.fields ?? [], list.fields)
-        const payload = { ...list, fields }
+
+        // A named profile replaces the id; the name never reaches the API.
+        const { qualityProfileName, ...rest } = list as ImportList & {
+          qualityProfileName?: string
+        }
+
+        const payload = {
+          ...rest,
+          fields,
+          ...(typeof qualityProfileName === 'string'
+            ? { qualityProfileId: resolveQualityProfileId(qualityProfileName, profiles) }
+            : {}),
+        }
 
         if (change.type === 'create') {
           await this.client.addImportList(payload as Record<string, unknown>)

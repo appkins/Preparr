@@ -90,3 +90,24 @@ describe('importListMatches', () => {
     ).toBe(false)
   })
 })
+
+describe('resolveQualityProfileId', () => {
+  const profiles = [
+    { id: 1, name: 'Any' },
+    { id: 7, name: 'HD Bluray + WEB' },
+  ]
+
+  test('resolves a profile named in the configuration', async () => {
+    const { resolveQualityProfileId } = await import('./import-list-fields')
+
+    expect(resolveQualityProfileId('HD Bluray + WEB', profiles)).toBe(7)
+  })
+
+  test('names the profile it could not find rather than falling back', async () => {
+    // Falling back to the first profile would attach the list to "Any", which
+    // downloads whatever it is offered -- a quiet, expensive wrong answer.
+    const { resolveQualityProfileId } = await import('./import-list-fields')
+
+    expect(() => resolveQualityProfileId('Nope', profiles)).toThrow(/Nope/)
+  })
+})
