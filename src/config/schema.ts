@@ -470,6 +470,32 @@ export const IndexerSchema = z.object({
   redirect: z.boolean().optional(),
 })
 
+/**
+ * An import list.
+ *
+ * The top-level settings differ between applications -- Radarr takes monitor,
+ * minimumAvailability and searchOnAdd where Sonarr takes shouldMonitor,
+ * seriesType and seasonFolder -- so anything beyond the common core passes
+ * through unmodelled rather than being described twice and kept in step.
+ */
+export const ImportListSchema = z
+  .object({
+    name: z.string(),
+    implementation: z.string(),
+    implementationName: z.string().optional(),
+    configContract: z.string(),
+    fields: z
+      .array(
+        z.object({
+          name: z.string(),
+          value: z.union([z.string(), z.number(), z.boolean(), z.array(z.number())]),
+        }),
+      )
+      .default([]),
+    tags: z.array(z.number()).default([]),
+  })
+  .passthrough()
+
 export const DownloadClientSchema = z.object({
   name: z.string(),
   implementation: z.string(),
@@ -620,6 +646,7 @@ export const AppConfigSchema = z.object({
   trashCustomFormats: z.array(z.string()).default([]),
   indexers: z.array(IndexerSchema).optional(),
   downloadClients: z.array(DownloadClientSchema).default([]),
+  importLists: z.array(ImportListSchema).default([]),
   applications: z.array(ApplicationSchema).default([]),
   qbittorrent: QBittorrentConfigSchema,
   sabnzbd: SabnzbdConfigSchema,
@@ -657,6 +684,7 @@ export const ConfigSchema = z.object({
     rootFolders: [],
     qualityProfiles: [],
     downloadClients: [],
+    importLists: [],
     applications: [],
     customFormats: [],
     trashCustomFormats: [],
@@ -688,6 +716,7 @@ export type IndexerProxy = z.infer<typeof IndexerProxySchema>
 export type RootFolder = z.infer<typeof RootFolderSchema>
 export type CustomFormatSpecification = z.infer<typeof CustomFormatSpecificationSchema>
 export type CustomFormat = z.infer<typeof CustomFormatSchema>
+export type ImportList = z.infer<typeof ImportListSchema>
 export type LazyLibrarianConfig = z.infer<typeof LazyLibrarianConfigSchema>
 export type FormatItem = z.infer<typeof FormatItemSchema>
 export type QualityProfile = z.infer<typeof QualityProfileSchema>

@@ -3,6 +3,7 @@ import type {
   Application,
   CustomFormat,
   DownloadClient,
+  ImportList,
   Indexer,
   MediaManagementConfig,
   NamingConfig,
@@ -1234,6 +1235,32 @@ export class ServarrManager {
       logger.error('Failed to configure applications', { error })
       throw error
     }
+  }
+
+  // ============================================
+  // Import Lists
+  // ============================================
+
+  getImportLists(): Promise<Array<ImportList & { id: number }>> {
+    return this.fetchApiVersioned<Array<ImportList & { id: number }>>(
+      apiVersionFor(this.config.type),
+      '/importlist',
+    )
+  }
+
+  addImportList(list: Record<string, unknown>): Promise<ImportList> {
+    return this.fetchApiVersioned<ImportList>(apiVersionFor(this.config.type), '/importlist', {
+      method: 'POST',
+      body: list,
+    })
+  }
+
+  updateImportList(id: number, list: Record<string, unknown>): Promise<ImportList> {
+    return this.fetchApiVersioned<ImportList>(
+      apiVersionFor(this.config.type),
+      `/importlist/${id}`,
+      { method: 'PUT', body: { ...list, id } },
+    )
   }
 
   // ============================================

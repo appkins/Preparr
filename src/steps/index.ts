@@ -23,6 +23,7 @@ import { SabnzbdConfigStep } from './integrations/sabnzbd-config'
 import { ApplicationsStep } from './servarr/applications'
 import { CustomFormatsStep } from './servarr/custom-formats'
 import { DownloadClientsStep } from './servarr/download-clients'
+import { ImportListsStep } from './servarr/import-lists'
 import { IndexerProxiesStep } from './servarr/indexer-proxies'
 import { IndexersStep } from './servarr/indexers'
 import { MediaManagementStep } from './servarr/media-management'
@@ -64,6 +65,7 @@ export const allSteps: ConfigurationStep[] = [
   // Integrations
   new QBittorrentConfigStep(),
   new SabnzbdConfigStep(),
+  new ImportListsStep(),
   new LazyLibrarianConnectivityStep(),
   new LazyLibrarianConfigFileStep(),
   new LazyLibrarianSettingsStep(),
