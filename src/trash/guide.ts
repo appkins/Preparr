@@ -140,3 +140,24 @@ export class TrashGuide {
     return resolved
   }
 }
+
+/**
+ * One guide per app, for the life of the process.
+ *
+ * The index behind it costs a request per custom format, and the
+ * configuration that needs it is reloaded every few seconds by the reconcile
+ * loop and by its file watcher. Built per call, that turned a cache into a
+ * download of the entire guide several times a minute.
+ */
+const guides = new Map<string, TrashGuide>()
+
+export function trashGuideFor(app: 'radarr' | 'sonarr'): TrashGuide {
+  const existing = guides.get(app)
+  if (existing) {
+    return existing
+  }
+
+  const guide = new TrashGuide({ app })
+  guides.set(app, guide)
+  return guide
+}

@@ -10,7 +10,7 @@
 
 import type { Config, CustomFormat } from '@/config/schema'
 import { scoreFor, type TrashCustomFormat, toCustomFormat } from '@/trash/convert'
-import { TrashGuide } from '@/trash/guide'
+import { trashGuideFor } from '@/trash/guide'
 import { logger } from '@/utils/logger'
 
 /** The apps the guides publish custom formats for. */
@@ -41,7 +41,7 @@ export async function resolveTrashReferences(
     return config
   }
 
-  const guide = resolver ?? new TrashGuide({ app: app as 'radarr' | 'sonarr' })
+  const guide = resolver ?? trashGuideFor(app as 'radarr' | 'sonarr')
   const definitions = await guide.resolve([...new Set(referenced)])
 
   // Formats already written out by hand win: the config is the more specific

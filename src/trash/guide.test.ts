@@ -108,3 +108,19 @@ describe('TrashGuide', () => {
     expect(calls).toHaveLength(0)
   })
 })
+
+describe('trashGuideFor', () => {
+  test('hands back the same guide for an app, so the index is built once', async () => {
+    // The index costs ~220 requests. A fresh guide per call rebuilt it on
+    // every config load, and the config is loaded every few seconds.
+    const { trashGuideFor } = await import('./guide')
+
+    expect(trashGuideFor('radarr')).toBe(trashGuideFor('radarr'))
+  })
+
+  test('keeps the two apps apart', async () => {
+    const { trashGuideFor } = await import('./guide')
+
+    expect(trashGuideFor('radarr')).not.toBe(trashGuideFor('sonarr'))
+  })
+})

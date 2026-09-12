@@ -8,6 +8,9 @@ import { withRetry } from '@/utils/retry'
 export interface ReconciliationState {
   lastReconciliation: Date
   lastConfigHash: string
+
+  /** Hash of the raw configuration file, so an unchanged one costs a read. */
+  lastFileHash: string
   reconciliationCount: number
   errors: number
   lastError?: Error | undefined
@@ -26,6 +29,7 @@ export class ReconciliationManager {
     this.state = {
       lastReconciliation: new Date(),
       lastConfigHash: '',
+      lastFileHash: '',
       reconciliationCount: 0,
       errors: 0,
       lastError: undefined,
@@ -86,10 +90,46 @@ export class ReconciliationManager {
     logger.info('Configuration file watching started')
   }
 
+  /**
+   * Hash of the configuration file as it sits on disk.
+   *
+   * Read before anything is parsed. Loading the configuration to find out
+   * whether it changed means parsing it, validating it and resolving whatever
+   * it references -- which for a file naming TRaSH custom formats means
+   * fetching the guide. Doing that every few seconds to compute a hash that is
+   * almost always the same is the expensive way round.
+   */
+  private async readConfigFileHash(): Promise<string | null> {
+    const path = this.baseContext.config.configPath
+    if (!path) {
+      return null
+    }
+
+    try {
+      return Bun.hash(await Bun.file(path).text()).toString()
+    } catch (error) {
+      // Unreadable, mid-write, or swapped out underneath us -- a Kubernetes
+      // ConfigMap update replaces the symlink rather than the file. Fall back
+      // to the full load rather than concluding nothing changed.
+      logger.debug('Could not read the configuration file to hash it', { path, error })
+      return null
+    }
+  }
+
   private async checkConfigurationChanges(): Promise<void> {
     try {
+      const fileHash = await this.readConfigFileHash()
+
+      if (fileHash !== null && fileHash === this.state.lastFileHash) {
+        return
+      }
+
       const config = await this.loadConfiguration()
       const configHash = this.calculateConfigHash(config)
+
+      if (fileHash !== null) {
+        this.state.lastFileHash = fileHash
+      }
 
       if (configHash !== this.state.lastConfigHash) {
         logger.info('Configuration change detected, triggering reconciliation', {
