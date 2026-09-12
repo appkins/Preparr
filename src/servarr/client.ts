@@ -16,6 +16,7 @@ import { logger } from '@/utils/logger'
 import { withRetry } from '@/utils/retry'
 import { ServarrApiClient } from './api-client'
 import { ConfigXmlWriter } from './config-writer'
+import { redactSecretFields, resolveIndexerRedirect } from './indexer-payload'
 import {
   apiVersionFor,
   buildRootFolderBody,
@@ -115,6 +116,12 @@ export class ServarrManager {
       enableAutomaticSearch: indexer.enable,
       enableInteractiveSearch: indexer.enable,
       priority: indexer.priority,
+    }
+
+    const redirect = resolveIndexerRedirect(indexer)
+    if (redirect !== undefined) {
+      // biome-ignore lint/suspicious/noExplicitAny: IndexerResource type does not include redirect
+      ;(tsarrIndexer as any).redirect = redirect
     }
 
     // Add properties that may not be part of IndexerResource type
@@ -710,9 +717,13 @@ export class ServarrManager {
       }
 
       const tsarrIndexer = this.mapToTsarrIndexer(indexer)
-      logger.info('About to add indexer to Prowlarr', {
+      logger.debug('About to add indexer', {
         name: indexer.name,
-        indexerData: JSON.stringify(tsarrIndexer, null, 2),
+        indexerData: JSON.stringify(
+          { ...tsarrIndexer, fields: redactSecretFields(tsarrIndexer.fields) },
+          null,
+          2,
+        ),
       })
 
       const result = await this.client.addIndexer(tsarrIndexer)

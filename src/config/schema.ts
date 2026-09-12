@@ -344,6 +344,11 @@ export const IndexerSchema = z.object({
   enable: z.boolean().default(true),
   priority: z.number().default(25),
   appProfileId: z.number().optional(),
+
+  // Prowlarr requires this true for Usenet indexers and rejects the create
+  // otherwise. Left unset it is derived from the implementation, so only an
+  // indexer that wants to contradict that needs to say so.
+  redirect: z.boolean().optional(),
 })
 
 export const DownloadClientSchema = z.object({
