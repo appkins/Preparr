@@ -57,6 +57,53 @@ describe('ContextBuilder', () => {
     expect(context.qbittorrentClient).toBeDefined()
   })
 
+  test('accepts a lazylibrarian client as the only service client, in init mode', () => {
+    // An init run for LazyLibrarian only writes a configuration file and calls
+    // nothing, but the context still insists on a client existing -- so one
+    // has to be built in both modes or the run is refused before it can write.
+    const config = {
+      postgres: {
+        host: 'localhost',
+        port: 5432,
+        username: 'postgres',
+        password: '',
+        database: 'servarr',
+        logDatabaseEnabled: false,
+        skipProvisioning: true,
+      },
+      servarr: { type: 'lazylibrarian', adminUser: 'admin', authenticationMethod: 'forms' },
+      services: { lazylibrarian: { url: 'http://localhost:5299', apiKey: 'k' } },
+      app: {
+        prowlarrSync: false,
+        rootFolders: [],
+        qualityProfiles: [],
+        downloadClients: [],
+        applications: [],
+        customFormats: [],
+        releaseProfiles: [],
+        qualityDefinitions: [],
+      },
+      health: { port: 8080 },
+      logLevel: 'info',
+      logFormat: 'json',
+      configPath: '/preparr/lazylibrarian-config.json',
+      configWatch: true,
+      configReconcileInterval: 60,
+      // biome-ignore lint/suspicious/noExplicitAny: a Config stub, not a Config
+    } as any
+
+    const context = new ContextBuilder()
+      .setConfig(config)
+      .setServarrType('lazylibrarian')
+      .setPostgresClient({} as unknown as import('@/postgres/client').PostgresClient)
+      .setLazyLibrarianClient({} as unknown as import('@/lazylibrarian/client').LazyLibrarianClient)
+      .setExecutionMode('init')
+      .build()
+
+    expect(context.lazyLibrarianClient).toBeDefined()
+    expect(context.executionMode).toBe('init')
+  })
+
   test('accepts a sabnzbd client as the only service client', () => {
     const config = {
       postgres: {

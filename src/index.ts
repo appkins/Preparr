@@ -102,13 +102,15 @@ class PrepArr {
             : undefined,
         )
         .setLazyLibrarianClient(
-          // Only in sidecar mode, and only once the file has given the API a
-          // key: in init mode the application is not running, and the key is
-          // one of the things that run is putting in place.
-          this.config.services?.lazylibrarian?.apiKey && mode === 'sidecar'
+          // Built whenever one is configured, in either mode. It opens nothing
+          // until a call is made, and the steps that make calls are sidecar
+          // ones -- but the context requires a client to exist, and an init
+          // run that only writes a configuration file would otherwise have
+          // none at all and be refused before it could write it.
+          this.config.services?.lazylibrarian?.url
             ? new LazyLibrarianClient({
                 url: this.config.services.lazylibrarian.url,
-                apiKey: this.config.services.lazylibrarian.apiKey,
+                apiKey: this.config.services.lazylibrarian.apiKey ?? '',
               })
             : undefined,
         )
