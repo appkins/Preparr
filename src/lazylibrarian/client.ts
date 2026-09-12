@@ -77,6 +77,28 @@ export class LazyLibrarianClient {
   }
 
   /**
+   * Whether a value read back is already the value being asked for.
+   *
+   * A boolean does not read back the way it is written. ConfigBool.get_str
+   * returns '1' for true and an empty string for false, so a setting sent as
+   * '0' reads back as ''. Compared literally those never matched, so every
+   * false setting was rewritten on every pass -- and each write made
+   * LazyLibrarian log "Config[0]: read_error", because its writeCFG looks the
+   * value up as though it were the name of a setting.
+   *
+   * The narrow case is the only one handled: an empty reading against a '0'
+   * being asked for. A string setting genuinely holding "0" reads back as
+   * "0" and still compares equal on its own.
+   */
+  private matches(current: string, desired: string): boolean {
+    if (current === desired) {
+      return true
+    }
+
+    return current === '' && desired === '0'
+  }
+
+  /**
    * Bring the instance to the given settings, writing only what differs.
    *
    * Read first, because the API costs a request per setting either way and a
@@ -91,7 +113,7 @@ export class LazyLibrarianClient {
       for (const [name, value] of Object.entries(values)) {
         const current = await this.read(group, name)
 
-        if (current === value) {
+        if (this.matches(current, value)) {
           continue
         }
 

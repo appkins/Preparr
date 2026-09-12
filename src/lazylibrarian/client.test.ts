@@ -91,6 +91,47 @@ describe('LazyLibrarianClient', () => {
     expect(writes[0]?.searchParams.get('value')).toBe('/data/media/audio')
   })
 
+  test('a false setting already false is not rewritten', async () => {
+    // ConfigBool.get_str returns '1' for true and '' for false, so a setting
+    // this sends as '0' reads back as ''. Comparing those literally never
+    // matched, and every false setting was rewritten on every pass -- which
+    // also made LazyLibrarian log "Config[0]: read_error" each time, because
+    // its writeCFG looks the value up as though it were a setting name.
+    const { fetchImpl, calls } = stub({ 'readCFG:CALIBRE_USE_SERVER': '[]' })
+    const client = new LazyLibrarianClient({ ...options, fetchImpl })
+
+    const changed = await client.apply({ Calibre: { CALIBRE_USE_SERVER: '0' } })
+
+    expect(changed).toEqual([])
+    expect(calls.filter((c) => c.searchParams.get('cmd') === 'writeCFG')).toHaveLength(0)
+  })
+
+  test('a false setting that is currently true is still written', async () => {
+    const { fetchImpl, calls } = stub({ 'readCFG:CALIBRE_USE_SERVER': '[1]', writeCFG: '' })
+    const client = new LazyLibrarianClient({ ...options, fetchImpl })
+
+    const changed = await client.apply({ Calibre: { CALIBRE_USE_SERVER: '0' } })
+
+    expect(changed).toEqual(['Calibre.CALIBRE_USE_SERVER'])
+    expect(calls.filter((c) => c.searchParams.get('cmd') === 'writeCFG')).toHaveLength(1)
+  })
+
+  test('a true setting that is currently false is still written', async () => {
+    const { fetchImpl, calls } = stub({ 'readCFG:COMIC_TAB': '[]', writeCFG: '' })
+    const client = new LazyLibrarianClient({ ...options, fetchImpl })
+
+    expect(await client.apply({ Comics: { COMIC_TAB: '1' } })).toEqual(['Comics.COMIC_TAB'])
+    expect(calls.filter((c) => c.searchParams.get('cmd') === 'writeCFG')).toHaveLength(1)
+  })
+
+  test('an empty string setting matching an empty value is not rewritten', async () => {
+    const { fetchImpl, calls } = stub({ 'readCFG:CALIBRE_SERVER': '[]' })
+    const client = new LazyLibrarianClient({ ...options, fetchImpl })
+
+    expect(await client.apply({ Calibre: { CALIBRE_SERVER: '' } })).toEqual([])
+    expect(calls.filter((c) => c.searchParams.get('cmd') === 'writeCFG')).toHaveLength(0)
+  })
+
   test('writes nothing at all when everything already matches', async () => {
     const { fetchImpl, calls } = stub({ 'readCFG:EBOOK_DIR': '[/x]' })
     const client = new LazyLibrarianClient({ ...options, fetchImpl })
