@@ -8,10 +8,18 @@ import type { TrashCustomFormat } from './convert'
  * there is no way to fetch one by id directly and no published index to read
  * instead. The whole directory is therefore fetched once and indexed by id.
  *
- * That is ~240 small files per app. It happens once per process -- an init
- * container runs it at startup, a sidecar once for the life of the pod -- and
- * the alternative, cloning the repository, costs a git binary and a volume to
- * keep it on.
+ * That is ~220 small files per app, once per process -- an init container at
+ * startup, a sidecar once for the life of the pod. The two alternatives are
+ * worse: cloning the repository costs a git binary and a volume to keep it on,
+ * and its tarball is 25MB of mostly images for 200KB of JSON.
+ *
+ * Both the listing and the files come from jsDelivr rather than from GitHub
+ * directly. GitHub's contents API is the only way it will list a directory and
+ * it allows 60 unauthenticated calls an hour per address, which a handful of
+ * pods restarting exhausts -- the failure being a 403 at startup with the
+ * budget already spent. jsDelivr needs no credentials and imposes no such
+ * limit. Its listing is not always complete, so an id it cannot resolve is
+ * reported as an error rather than quietly skipped.
  */
 
 const DEFAULT_REF = 'master'
@@ -35,12 +43,17 @@ export class TrashGuide {
     this.ref = options.ref ?? DEFAULT_REF
   }
 
+  /** Lists the whole repository; the app's own directory is filtered out of it. */
   private get listingUrl(): string {
-    return `https://api.github.com/repos/TRaSH-Guides/Guides/contents/docs/json/${this.app}/cf?ref=${this.ref}`
+    return `https://data.jsdelivr.com/v1/packages/gh/TRaSH-Guides/Guides@${this.ref}?structure=flat`
   }
 
-  private fileUrl(name: string): string {
-    return `https://raw.githubusercontent.com/TRaSH-Guides/Guides/${this.ref}/docs/json/${this.app}/cf/${name}`
+  private get directory(): string {
+    return `/docs/json/${this.app}/cf/`
+  }
+
+  private fileUrl(path: string): string {
+    return `https://cdn.jsdelivr.net/gh/TRaSH-Guides/Guides@${this.ref}${path}`
   }
 
   private async fetchJson<T>(url: string): Promise<T> {
@@ -58,10 +71,10 @@ export class TrashGuide {
       return this.index
     }
 
-    const listing = await this.fetchJson<Array<{ name: string; type: string }>>(this.listingUrl)
-    const names = listing
-      .filter((e) => e.type === 'file' && e.name.endsWith('.json'))
-      .map((e) => e.name)
+    const listing = await this.fetchJson<{ files: Array<{ name: string }> }>(this.listingUrl)
+    const names = (listing.files ?? [])
+      .map((file) => file.name)
+      .filter((name) => name.startsWith(this.directory) && name.endsWith('.json'))
 
     logger.info('Indexing TRaSH Guides custom formats', { app: this.app, count: names.length })
 
@@ -70,9 +83,17 @@ export class TrashGuide {
 
     const worker = async (): Promise<void> => {
       for (let name = queue.shift(); name !== undefined; name = queue.shift()) {
-        const format = await this.fetchJson<TrashCustomFormat>(this.fileUrl(name))
-        if (format?.trash_id) {
-          index.set(format.trash_id, format)
+        try {
+          const format = await this.fetchJson<TrashCustomFormat>(this.fileUrl(name))
+          if (format?.trash_id) {
+            index.set(format.trash_id, format)
+          }
+        } catch (error) {
+          // The listing and the files are not perfectly consistent: jsDelivr
+          // lists paths its CDN then 404s. Losing one file must not cost the
+          // whole index, and an id that is actually referenced still fails
+          // loudly in resolve().
+          logger.debug('Skipping a TRaSH Guides file that could not be read', { name, error })
         }
       }
     }
