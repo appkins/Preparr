@@ -59,6 +59,8 @@ export const envMapping = {
   // username/password pair here as there is for qBittorrent above.
   SABNZBD_URL: 'services.sabnzbd.url',
   SABNZBD_API_KEY: 'services.sabnzbd.apiKey',
+  LAZYLIBRARIAN_URL: 'services.lazylibrarian.url',
+  LAZYLIBRARIAN_API_KEY: 'services.lazylibrarian.apiKey',
 
   PROWLARR_URL: 'services.prowlarr.url',
   PROWLARR_API_KEY: 'services.prowlarr.apiKey',

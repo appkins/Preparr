@@ -31,6 +31,7 @@ export const ServarrConfigSchema = z
         'qbittorrent',
         'bazarr',
         'sabnzbd',
+        'lazylibrarian',
         'auto',
       ])
       .default('auto'),
@@ -48,7 +49,12 @@ export const ServarrConfigSchema = z
       // servarr.url addresses a Servarr API. qBittorrent, Bazarr and SABnzbd
       // are not Servarr apps and are reached through their own services.*
       // entry, so none of them has one to give.
-      if (data.type !== 'qbittorrent' && data.type !== 'bazarr' && data.type !== 'sabnzbd') {
+      if (
+        data.type !== 'qbittorrent' &&
+        data.type !== 'bazarr' &&
+        data.type !== 'sabnzbd' &&
+        data.type !== 'lazylibrarian'
+      ) {
         if (!data.url) {
           return false
         }
@@ -69,7 +75,12 @@ export const ServarrConfigSchema = z
   .refine(
     (data) => {
       // adminPassword validation: required for Servarr types, optional for qbittorrent and bazarr
-      if (data.type !== 'qbittorrent' && data.type !== 'bazarr' && data.type !== 'sabnzbd') {
+      if (
+        data.type !== 'qbittorrent' &&
+        data.type !== 'bazarr' &&
+        data.type !== 'sabnzbd' &&
+        data.type !== 'lazylibrarian'
+      ) {
         if (!data.adminPassword) {
           return false
         }
@@ -81,6 +92,70 @@ export const ServarrConfigSchema = z
       path: ['adminPassword'],
     },
   )
+
+/**
+ * LazyLibrarian.
+ *
+ * Not a Servarr application: it has no Servarr API, and no API for its
+ * settings at all -- they exist only in config.ini. So this describes a file
+ * to be written rather than calls to be made, and it is applied before the
+ * application starts, because LazyLibrarian rewrites that file itself.
+ */
+export const LazyLibrarianSabnzbdSchema = z.object({
+  host: z.string(),
+  port: z.number(),
+  apiKey: z.string().optional(),
+  category: z.string().optional(),
+  username: z.string().optional(),
+  password: z.string().optional(),
+})
+
+export const LazyLibrarianQbittorrentSchema = z.object({
+  host: z.string(),
+  port: z.number(),
+  username: z.string().optional(),
+  password: z.string().optional(),
+  label: z.string().optional(),
+  directory: z.string().optional(),
+})
+
+export const LazyLibrarianCalibreSchema = z.object({
+  enabled: z.boolean().default(true),
+  server: z.string().optional(),
+  username: z.string().optional(),
+  password: z.string().optional(),
+
+  /** Path to the calibredb binary inside the LazyLibrarian container. */
+  databasePath: z.string().optional(),
+})
+
+export const LazyLibrarianConfigSchema = z.object({
+  /** config.ini, as mounted into the init container. */
+  configPath: z.string().default('/config/config.ini'),
+
+  /** Where finished ebooks and audiobooks are filed. */
+  ebookDir: z.string().optional(),
+  audioDir: z.string().optional(),
+
+  /** Where the download clients put things before they are filed. */
+  downloadDir: z.string().optional(),
+
+  apiKey: z.string().optional(),
+
+  comics: z
+    .object({
+      enabled: z.boolean().default(false),
+      comicVineApiKey: z.string().optional(),
+    })
+    .optional(),
+
+  sabnzbd: LazyLibrarianSabnzbdSchema.optional(),
+  qbittorrent: LazyLibrarianQbittorrentSchema.optional(),
+  calibre: LazyLibrarianCalibreSchema.optional(),
+
+  /** Anything not modelled here, as raw section and key names. */
+  extra: z.record(z.string(), z.record(z.string(), z.string())).optional(),
+})
 
 export const BazarrLanguageSchema = z.object({
   code: z.string(),
@@ -149,6 +224,12 @@ export const BazarrConfigSchema = z
   .optional()
 
 export const ServiceIntegrationSchema = z.object({
+  lazylibrarian: z
+    .object({
+      url: z.string(),
+      apiKey: z.string().optional(),
+    })
+    .optional(),
   qbittorrent: z
     .object({
       url: z.url(),
@@ -542,6 +623,7 @@ export const AppConfigSchema = z.object({
   applications: z.array(ApplicationSchema).default([]),
   qbittorrent: QBittorrentConfigSchema,
   sabnzbd: SabnzbdConfigSchema,
+  lazylibrarian: LazyLibrarianConfigSchema.optional(),
 
   // Tag labels to ensure exist. Anything referenced by an indexer proxy or by
   // indexerTags is created whether or not it is also listed here.
@@ -606,6 +688,7 @@ export type IndexerProxy = z.infer<typeof IndexerProxySchema>
 export type RootFolder = z.infer<typeof RootFolderSchema>
 export type CustomFormatSpecification = z.infer<typeof CustomFormatSpecificationSchema>
 export type CustomFormat = z.infer<typeof CustomFormatSchema>
+export type LazyLibrarianConfig = z.infer<typeof LazyLibrarianConfigSchema>
 export type FormatItem = z.infer<typeof FormatItemSchema>
 export type QualityProfile = z.infer<typeof QualityProfileSchema>
 export type ReleaseProfileTerm = z.infer<typeof ReleaseProfileTermSchema>

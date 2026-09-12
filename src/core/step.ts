@@ -1,5 +1,6 @@
 import type { BazarrManager } from '@/bazarr/client'
 import type { Config } from '@/config/schema'
+import type { LazyLibrarianClient } from '@/lazylibrarian/client'
 import type { PostgresClient } from '@/postgres/client'
 import type { ProwlarrExtrasClient } from '@/prowlarr/client'
 import type { QBittorrentManager } from '@/qbittorrent/client'
@@ -16,6 +17,7 @@ export interface StepContext {
   servarrClient?: ServarrManager | undefined
   qbittorrentClient?: QBittorrentManager | undefined
   sabnzbdClient?: SabnzbdManager | undefined
+  lazyLibrarianClient?: LazyLibrarianClient | undefined
   prowlarrExtrasClient?: ProwlarrExtrasClient | undefined
   bazarrClient?: BazarrManager | undefined
   executionMode: 'init' | 'sidecar'

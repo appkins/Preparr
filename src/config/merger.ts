@@ -95,19 +95,18 @@ export function validateRequiredFields(config: Partial<Config>): string[] {
     errors.push('postgres.password is required')
   }
 
-  if (
-    !config.servarr?.adminPassword &&
-    config.servarr?.type !== 'qbittorrent' &&
-    config.servarr?.type !== 'bazarr'
-  ) {
+  // Kept in step with the two refinements in schema.ts, which exempt the same
+  // set. They disagreed once already: sabnzbd was exempted there and not here,
+  // and survived only because the deployment happened to supply a URL and a
+  // password it had no use for.
+  const NOT_SERVARR = ['qbittorrent', 'bazarr', 'sabnzbd', 'lazylibrarian']
+  const isServarrApi = !NOT_SERVARR.includes(config.servarr?.type ?? '')
+
+  if (!config.servarr?.adminPassword && isServarrApi) {
     errors.push('servarr.adminPassword is required when type is not qbittorrent or bazarr')
   }
 
-  if (
-    !config.servarr?.url &&
-    config.servarr?.type !== 'qbittorrent' &&
-    config.servarr?.type !== 'bazarr'
-  ) {
+  if (!config.servarr?.url && isServarrApi) {
     errors.push('servarr.url is required when type is not qbittorrent or bazarr')
   }
 

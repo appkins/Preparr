@@ -7,6 +7,7 @@ import { ConfigurationEngine } from '@/core/engine'
 import { HealthServer } from '@/core/health'
 import { ReconciliationManager } from '@/core/reconciliation'
 import type { StepContext } from '@/core/step'
+import { LazyLibrarianClient } from '@/lazylibrarian/client'
 import { PostgresClient } from '@/postgres/client'
 import { ProwlarrExtrasClient } from '@/prowlarr/client'
 import { QBittorrentManager } from '@/qbittorrent/client'
@@ -98,6 +99,17 @@ class PrepArr {
         .setSabnzbdClient(
           this.config.services?.sabnzbd
             ? new SabnzbdManager(this.config.services.sabnzbd)
+            : undefined,
+        )
+        .setLazyLibrarianClient(
+          // Only in sidecar mode, and only once the file has given the API a
+          // key: in init mode the application is not running, and the key is
+          // one of the things that run is putting in place.
+          this.config.services?.lazylibrarian?.apiKey && mode === 'sidecar'
+            ? new LazyLibrarianClient({
+                url: this.config.services.lazylibrarian.url,
+                apiKey: this.config.services.lazylibrarian.apiKey,
+              })
             : undefined,
         )
         .setBazarrClient(bazarrClient)

@@ -1,5 +1,6 @@
 import type { BazarrManager } from '@/bazarr/client'
 import type { Config } from '@/config/schema'
+import type { LazyLibrarianClient } from '@/lazylibrarian/client'
 import type { PostgresClient } from '@/postgres/client'
 import type { ProwlarrExtrasClient } from '@/prowlarr/client'
 import type { QBittorrentManager } from '@/qbittorrent/client'
@@ -50,6 +51,11 @@ export class ContextBuilder {
     return this
   }
 
+  setLazyLibrarianClient(client?: LazyLibrarianClient): this {
+    this.context.lazyLibrarianClient = client
+    return this
+  }
+
   setBazarrClient(client?: BazarrManager): this {
     this.context.bazarrClient = client
     return this
@@ -71,10 +77,11 @@ export class ContextBuilder {
       !this.context.servarrClient &&
       !this.context.bazarrClient &&
       !this.context.qbittorrentClient &&
-      !this.context.sabnzbdClient
+      !this.context.sabnzbdClient &&
+      !this.context.lazyLibrarianClient
     ) {
       throw new Error(
-        'At least one of Servarr client, Bazarr client, qBittorrent client, or SABnzbd client is required',
+        'At least one of Servarr, Bazarr, qBittorrent, SABnzbd or LazyLibrarian client is required',
       )
     }
     if (!this.context.servarrType) {
