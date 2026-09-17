@@ -24,6 +24,41 @@ interface BazarrLanguageProfileState {
   mustNotContain: string
 }
 
+/**
+ * Whether Bazarr's default-profile settings actually need writing.
+ *
+ * configureDefaultProfiles used to run on every reconcile, on the grounds that
+ * it is idempotent. It is idempotent in outcome but not in effect: it POSTs
+ * Bazarr's settings form, and Bazarr re-establishes its Sonarr and Radarr
+ * SignalR feeds whenever settings are saved. A cycle reporting changeCount 0
+ * therefore still reconnected both, every CONFIG_RECONCILE_INTERVAL, and each
+ * reconnect made Bazarr re-sync to catch up on events it might have missed.
+ *
+ * Ids are compared as text because Bazarr has returned both a number and a
+ * string for these across versions.
+ */
+export function defaultProfilesNeedWrite(
+  general: Record<string, unknown>,
+  profileIdByName: Map<string, number>,
+  desired: { series?: string | undefined; movies?: string | undefined },
+): boolean {
+  const needs = (name: string | undefined, enabledKey: string, profileKey: string): boolean => {
+    if (!name) return false
+
+    const id = profileIdByName.get(name)
+    if (id === undefined) return true
+
+    if (general[enabledKey] !== true) return true
+
+    return String(general[profileKey] ?? '') !== String(id)
+  }
+
+  return (
+    needs(desired.series, 'serie_default_enabled', 'serie_default_profile') ||
+    needs(desired.movies, 'movie_default_enabled', 'movie_default_profile')
+  )
+}
+
 export class BazarrLanguageProfilesStep extends BazarrStep {
   readonly name = 'bazarr-language-profiles'
   readonly description = 'Configure Bazarr language profiles'
@@ -179,10 +214,19 @@ export class BazarrLanguageProfilesStep extends BazarrStep {
         })
       }
 
-      // Always configure default profiles if specified (idempotent, runs even when profiles unchanged)
+      // Only when they differ. See defaultProfilesNeedWrite: writing these
+      // unconditionally costs a settings save, and a settings save costs two
+      // SignalR reconnects.
       const defaultProfiles = this.getDefaultProfilesConfig(context)
       if (defaultProfiles.series || defaultProfiles.movies) {
-        await this.client.configureDefaultProfiles(defaultProfiles.series, defaultProfiles.movies)
+        const profiles = await this.client.getLanguageProfiles()
+        const profileIdByName = new Map(profiles.map((p) => [p.name, p.profileId]))
+        const settings = await this.client.getSettings()
+        const general = (settings.general ?? {}) as Record<string, unknown>
+
+        if (defaultProfilesNeedWrite(general, profileIdByName, defaultProfiles)) {
+          await this.client.configureDefaultProfiles(defaultProfiles.series, defaultProfiles.movies)
+        }
       }
 
       // Bulk-assign profile to existing media with no profile
