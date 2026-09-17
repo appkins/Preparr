@@ -149,3 +149,29 @@ describe('ContextBuilder', () => {
     expect(context.sabnzbdClient).toBeDefined()
   })
 })
+
+test('a Pulsarr-only deployment is a complete context', () => {
+  // Pulsarr is not a Servarr app and has no Servarr, Bazarr, qBittorrent,
+  // SABnzbd or LazyLibrarian client. Leaving it out of the check refuses the
+  // context before any step runs, which reads as an empty {} error because the
+  // catch logs an Error and Error does not JSON-serialise.
+  const context = new ContextBuilder()
+    .setConfig({
+      servarr: { type: 'pulsarr' },
+      postgres: { host: 'pg', port: 5432, username: 'arr', password: 'x', database: 'arr' },
+      health: { port: 8080 },
+      logLevel: 'info',
+      logFormat: 'json',
+      configPath: '/preparr/pulsarr-config.json',
+      configWatch: true,
+      configReconcileInterval: 60,
+      // biome-ignore lint/suspicious/noExplicitAny: a Config stub, not a Config
+    } as any)
+    .setServarrType('pulsarr')
+    .setPostgresClient({} as unknown as import('@/postgres/client').PostgresClient)
+    .setPulsarrClient({} as unknown as import('@/pulsarr/client').PulsarrClient)
+    .setExecutionMode('init')
+    .build()
+
+  expect(context.pulsarrClient).toBeDefined()
+})

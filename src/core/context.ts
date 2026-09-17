@@ -84,10 +84,11 @@ export class ContextBuilder {
       !this.context.bazarrClient &&
       !this.context.qbittorrentClient &&
       !this.context.sabnzbdClient &&
-      !this.context.lazyLibrarianClient
+      !this.context.lazyLibrarianClient &&
+      !this.context.pulsarrClient
     ) {
       throw new Error(
-        'At least one of Servarr, Bazarr, qBittorrent, SABnzbd or LazyLibrarian client is required',
+        'At least one of Servarr, Bazarr, qBittorrent, SABnzbd, LazyLibrarian or Pulsarr client is required',
       )
     }
     if (!this.context.servarrType) {
