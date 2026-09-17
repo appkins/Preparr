@@ -65,3 +65,15 @@ describe('instanceMatches', () => {
     expect(instanceMatches(current, sonarr({ tags: ['hd', 'anime'] }))).toBe(false)
   })
 })
+
+describe('environment mapping', () => {
+  test('PULSARR_URL and PULSARR_API_KEY reach services.pulsarr', async () => {
+    // The client is only ever built from config.services.pulsarr, so a missing
+    // entry in envMapping leaves Pulsarr configured and unreachable -- with no
+    // error, because an absent client simply skips the steps.
+    const { envMapping } = await import('@/config/defaults')
+
+    expect(envMapping.PULSARR_URL).toBe('services.pulsarr.url')
+    expect(envMapping.PULSARR_API_KEY).toBe('services.pulsarr.apiKey')
+  })
+})

@@ -61,6 +61,8 @@ export const envMapping = {
   SABNZBD_API_KEY: 'services.sabnzbd.apiKey',
   LAZYLIBRARIAN_URL: 'services.lazylibrarian.url',
   LAZYLIBRARIAN_API_KEY: 'services.lazylibrarian.apiKey',
+  PULSARR_URL: 'services.pulsarr.url',
+  PULSARR_API_KEY: 'services.pulsarr.apiKey',
 
   PROWLARR_URL: 'services.prowlarr.url',
   PROWLARR_API_KEY: 'services.prowlarr.apiKey',
