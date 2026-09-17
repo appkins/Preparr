@@ -133,3 +133,77 @@ describe('BazarrManager language profile configuration', () => {
     expect(calledUrls.some((url) => url.includes('/api/system?action=restart'))).toBe(false)
   })
 })
+
+describe('BazarrManager language profile reads', () => {
+  const originalFetch = globalThis.fetch
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch
+    mock.restore()
+  })
+
+  test('mustContain comes back as a string even when Bazarr sends a list', async () => {
+    // Bazarr answers /system/languages/profiles with "mustContain": [] where
+    // the type here says string. getLanguageProfiles casts the response
+    // instead of reading it, so the array survives, and the profile step
+    // compares it with `current.mustContain !== (desired.mustContain ?? '')`.
+    // [] !== '' is always true, so the step plans an update on every pass and
+    // never converges -- it rewrites an already-correct profile forever.
+    globalThis.fetch = mock(
+      () =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify([
+              {
+                profileId: 1,
+                name: 'English',
+                cutoff: null,
+                items: [
+                  {
+                    id: 1,
+                    language: 'en',
+                    forced: 'False',
+                    hi: 'False',
+                    audio_exclude: 'True',
+                    audio_only_include: 'False',
+                  },
+                ],
+                mustContain: [],
+                mustNotContain: [],
+                originalFormat: 0,
+                tag: null,
+              },
+            ]),
+            { status: 200 },
+          ),
+        ),
+      // biome-ignore lint/suspicious/noExplicitAny: a fetch stub, not a fetch
+    ) as any
+
+    const client = new BazarrManager({ url: 'http://bazarr:6767', apiKey: 'k' })
+    const [profile] = await client.getLanguageProfiles()
+
+    expect(profile.mustContain).toBe('')
+    expect(profile.mustNotContain).toBe('')
+  })
+
+  test('a populated list becomes the comma-separated form the write path sends', async () => {
+    globalThis.fetch = mock(
+      () =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify([
+              { profileId: 1, name: 'English', cutoff: null, items: [], mustContain: ['x', 'y'] },
+            ]),
+            { status: 200 },
+          ),
+        ),
+      // biome-ignore lint/suspicious/noExplicitAny: a fetch stub, not a fetch
+    ) as any
+
+    const client = new BazarrManager({ url: 'http://bazarr:6767', apiKey: 'k' })
+    const [profile] = await client.getLanguageProfiles()
+
+    expect(profile.mustContain).toBe('x,y')
+  })
+})

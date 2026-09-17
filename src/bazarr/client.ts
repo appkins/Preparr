@@ -25,6 +25,12 @@ interface BazarrLanguageProfileApi {
   tag: string | null
 }
 
+/** Bazarr returns these as either a list or a string depending on version. */
+function toProfileText(value: unknown): string {
+  if (Array.isArray(value)) return value.join(',')
+  return typeof value === 'string' ? value : ''
+}
+
 export class BazarrManager {
   private config: { url: string; apiKey?: string }
   private isInitialized = false
@@ -413,7 +419,18 @@ export class BazarrManager {
       const data = await response.json()
 
       if (!Array.isArray(data)) return []
-      return data as BazarrLanguageProfileApi[]
+
+      // Bazarr answers with mustContain/mustNotContain as a list where this
+      // type says string, and a bare cast lets the array through. The profile
+      // step then compares it against the configured string, [] never equals
+      // '', and it rewrites an already-correct profile on every pass. Joined
+      // rather than discarded so a profile that really does constrain releases
+      // still compares against what the write path sends.
+      return (data as BazarrLanguageProfileApi[]).map((profile) => ({
+        ...profile,
+        mustContain: toProfileText(profile.mustContain),
+        mustNotContain: toProfileText(profile.mustNotContain),
+      }))
     } catch (error) {
       logger.error('Failed to get Bazarr language profiles', { error })
       return []
