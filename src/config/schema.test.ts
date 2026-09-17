@@ -114,3 +114,27 @@ describe('Configuration Schema Validation', () => {
     }
   })
 })
+
+describe('naming config field names match the Servarr APIs', () => {
+  test('a Radarr movie file format survives parsing under the name Radarr uses', () => {
+    // Radarr's /config/naming resource calls this field standardMovieFormat.
+    // A schema that spells it differently does not fail -- zod strips unknown
+    // keys -- so the format is silently dropped on the way in and the PUT that
+    // follows carries nothing Radarr recognises. Nothing logs and nothing
+    // changes; the folder names simply stay as they were.
+    const format = '{Movie CleanTitle} {(Release Year)} {tmdb-{TmdbId}}'
+
+    const result = AppConfigSchema.safeParse({ naming: { standardMovieFormat: format } })
+
+    expect(result.success).toBe(true)
+    expect(result.data?.naming?.standardMovieFormat).toBe(format)
+  })
+
+  test('the Sonarr equivalent is already named correctly', () => {
+    const format = '{Series CleanTitleWithoutYear} {(Series Year)} {tvdb-{TvdbId}}'
+
+    const result = AppConfigSchema.safeParse({ naming: { seriesFolderFormat: format } })
+
+    expect(result.data?.naming?.seriesFolderFormat).toBe(format)
+  })
+})

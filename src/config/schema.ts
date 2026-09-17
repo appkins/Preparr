@@ -466,7 +466,11 @@ export const NamingConfigSchema = z.object({
   multiEpisodeStyle: z.number().optional(), // 0-5
   // Radarr fields
   renameMovies: z.boolean().optional(),
-  movieFormat: z.string().optional(),
+
+  // Named as Radarr's /config/naming resource names it. It was movieFormat,
+  // which Radarr has never accepted: the PUT carried a field the API ignores
+  // and the format never took effect. Nothing referenced the old name.
+  standardMovieFormat: z.string().optional(),
   movieFolderFormat: z.string().optional(),
   colonReplacementFormat: z.number().optional(),
   // Lidarr fields
