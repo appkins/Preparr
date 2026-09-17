@@ -62,13 +62,21 @@ export class BazarrLanguagesStep extends BazarrStep {
       }
     }
 
-    // Check for languages to remove
-    for (const [code] of currentByCode) {
-      if (!desiredCodes.has(code)) {
+    // Check for languages to remove.
+    //
+    // Only the enabled ones. Bazarr's /system/languages answers with its whole
+    // catalogue -- every ISO language it knows, each carrying an enabled flag
+    // -- so comparing every code against the desired set planned a delete for
+    // all ~186 that merely exist and are switched off. The step then rewrote an
+    // already-correct language list on every reconcile and never converged;
+    // Bazarr reconnects its Sonarr and Radarr SignalR feeds whenever settings
+    // are saved, so at a 30 second interval it reconnected to both, all day.
+    for (const lang of current) {
+      if (lang.enabled && !desiredCodes.has(lang.code)) {
         changes.push({
           type: 'delete',
           resource: 'bazarr-language',
-          identifier: code,
+          identifier: lang.code,
         })
       }
     }
