@@ -36,6 +36,21 @@ const EMPTY_SERVICE_STATE: BazarrServiceState = {
   apiKey: '',
 }
 
+/**
+ * "" and "/" are the same root.
+ *
+ * parseServiceUrl reports "/" for a URL with no path; Bazarr stores and
+ * returns "". Compared literally the two never agree, so the step planned an
+ * update on every reconcile -- writing "/", having Bazarr normalise it back to
+ * "", and finding the same difference next pass. Bazarr re-establishes its
+ * Sonarr and Radarr SignalR feeds whenever settings are saved, so that rewrote
+ * nothing and reconnected both every cycle.
+ */
+function normalizeBasePath(basePath: string): string {
+  const trimmed = basePath.replace(/\/+$/, '')
+  return trimmed === '' ? '' : trimmed
+}
+
 export class BazarrIntegrationStep extends BazarrStep {
   readonly name = 'bazarr-integration'
   readonly description = 'Configure Bazarr Sonarr/Radarr integration'
@@ -134,7 +149,7 @@ export class BazarrIntegrationStep extends BazarrStep {
     return (
       current.host !== expected.host ||
       current.port !== expected.port ||
-      current.basePath !== expected.basePath ||
+      normalizeBasePath(current.basePath) !== normalizeBasePath(expected.basePath) ||
       current.ssl !== expected.ssl ||
       current.apiKey !== desired.apiKey
     )
