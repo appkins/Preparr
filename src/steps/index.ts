@@ -7,6 +7,7 @@ import { BazarrSubtitleDefaultsStep } from './bazarr/bazarr-subtitle-defaults'
 import { BazarrConnectivityStep } from './connectivity/bazarr-connectivity'
 import { LazyLibrarianConnectivityStep } from './connectivity/lazylibrarian-connectivity'
 import { PostgresConnectivityStep } from './connectivity/postgres-connectivity'
+import { PulsarrConnectivityStep } from './connectivity/pulsarr-connectivity'
 import { QBittorrentConnectivityStep } from './connectivity/qbittorrent-connectivity'
 import { SabnzbdConnectivityStep } from './connectivity/sabnzbd-connectivity'
 import { ServarrConnectivityStep } from './connectivity/servarr-connectivity'
@@ -18,6 +19,7 @@ import { ServarrConfigFileStep } from './infrastructure/servarr-config-file'
 import { UserCreationStep } from './infrastructure/user-creation'
 import { LazyLibrarianConfigFileStep } from './integrations/lazylibrarian-config'
 import { LazyLibrarianSettingsStep } from './integrations/lazylibrarian-settings'
+import { PulsarrInstancesStep } from './integrations/pulsarr-instances'
 import { QBittorrentConfigStep } from './integrations/qbittorrent-config'
 import { SabnzbdConfigStep } from './integrations/sabnzbd-config'
 import { ApplicationsStep } from './servarr/applications'
@@ -69,6 +71,8 @@ export const allSteps: ConfigurationStep[] = [
   new LazyLibrarianConnectivityStep(),
   new LazyLibrarianConfigFileStep(),
   new LazyLibrarianSettingsStep(),
+  new PulsarrConnectivityStep(),
+  new PulsarrInstancesStep(),
   // Bazarr
   new BazarrIntegrationStep(),
   new BazarrLanguagesStep(),

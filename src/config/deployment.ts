@@ -13,7 +13,7 @@
  * LazyLibrarian was missing from this one, so a ServarrManager was built for
  * it and sat waiting for an API that does not exist to answer, for ever.
  */
-const NON_SERVARR_TYPES = new Set(['qbittorrent', 'bazarr', 'sabnzbd', 'lazylibrarian'])
+const NON_SERVARR_TYPES = new Set(['qbittorrent', 'bazarr', 'sabnzbd', 'lazylibrarian', 'pulsarr'])
 
 /**
  * An absent type counts as a Servarr app: the schema defaults it to "auto",

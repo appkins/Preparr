@@ -33,6 +33,7 @@ export const ServarrConfigSchema = z
         'bazarr',
         'sabnzbd',
         'lazylibrarian',
+        'pulsarr',
         'auto',
       ])
       .default('auto'),
@@ -243,8 +244,62 @@ export const BazarrConfigSchema = z
   })
   .optional()
 
+/**
+ * A Sonarr or Radarr instance Pulsarr routes watchlist entries into.
+ *
+ * Only the fields worth declaring are modelled. Pulsarr defaults the rest and
+ * answers with them filled in, and the reconciliation deliberately compares
+ * only what was asked for -- see src/pulsarr/instance-payload.ts.
+ */
+export const PulsarrInstanceSchema = z.object({
+  name: z.string().min(1),
+  baseUrl: z.url(),
+  apiKey: z.string(),
+
+  /** A profile name or its id; Pulsarr accepts either. */
+  qualityProfile: z.union([z.string(), z.number()]).optional(),
+  rootFolder: z.string().optional(),
+  tags: z.array(z.string()).default([]),
+
+  /** Where a watchlist entry goes when no routing rule matches. */
+  isDefault: z.boolean().default(false),
+  bypassIgnored: z.boolean().optional(),
+  searchOnAdd: z.boolean().optional(),
+})
+
+export const PulsarrSonarrInstanceSchema = PulsarrInstanceSchema.extend({
+  seasonMonitoring: z.string().optional(),
+  monitorNewItems: z.enum(['all', 'none']).optional(),
+  createSeasonFolders: z.boolean().optional(),
+  seriesType: z.enum(['standard', 'anime', 'daily']).optional(),
+})
+
+export const PulsarrRadarrInstanceSchema = PulsarrInstanceSchema.extend({
+  minimumAvailability: z.enum(['announced', 'inCinemas', 'released']).optional(),
+  monitor: z.enum(['movieOnly', 'movieAndCollection', 'none']).optional(),
+})
+
+/**
+ * Pulsarr, which watches Plex watchlists and routes what appears on them into
+ * Sonarr and Radarr.
+ *
+ * Only the instances are configured here. Everything else Pulsarr takes --
+ * the Plex token, its port, the database it uses -- is an environment
+ * variable, which belongs in the Deployment rather than in a reconciler.
+ */
+export const PulsarrConfigSchema = z.object({
+  sonarr: z.array(PulsarrSonarrInstanceSchema).default([]),
+  radarr: z.array(PulsarrRadarrInstanceSchema).default([]),
+})
+
 export const ServiceIntegrationSchema = z.object({
   lazylibrarian: z
+    .object({
+      url: z.string(),
+      apiKey: z.string().optional(),
+    })
+    .optional(),
+  pulsarr: z
     .object({
       url: z.string(),
       apiKey: z.string().optional(),
@@ -671,6 +726,7 @@ export const AppConfigSchema = z.object({
   qbittorrent: QBittorrentConfigSchema,
   sabnzbd: SabnzbdConfigSchema,
   lazylibrarian: LazyLibrarianConfigSchema.optional(),
+  pulsarr: PulsarrConfigSchema.optional(),
 
   // Tag labels to ensure exist. Anything referenced by an indexer proxy or by
   // indexerTags is created whether or not it is also listed here.
@@ -738,6 +794,7 @@ export type CustomFormatSpecification = z.infer<typeof CustomFormatSpecification
 export type CustomFormat = z.infer<typeof CustomFormatSchema>
 export type ImportList = z.infer<typeof ImportListSchema>
 export type LazyLibrarianConfig = z.infer<typeof LazyLibrarianConfigSchema>
+export type PulsarrConfig = z.infer<typeof PulsarrConfigSchema>
 export type FormatItem = z.infer<typeof FormatItemSchema>
 export type QualityProfile = z.infer<typeof QualityProfileSchema>
 export type ReleaseProfileTerm = z.infer<typeof ReleaseProfileTermSchema>

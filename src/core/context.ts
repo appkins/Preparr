@@ -3,6 +3,7 @@ import type { Config } from '@/config/schema'
 import type { LazyLibrarianClient } from '@/lazylibrarian/client'
 import type { PostgresClient } from '@/postgres/client'
 import type { ProwlarrExtrasClient } from '@/prowlarr/client'
+import type { PulsarrClient } from '@/pulsarr/client'
 import type { QBittorrentManager } from '@/qbittorrent/client'
 import type { SabnzbdManager } from '@/sabnzbd/client'
 import type { ServarrManager } from '@/servarr/client'
@@ -53,6 +54,11 @@ export class ContextBuilder {
 
   setLazyLibrarianClient(client?: LazyLibrarianClient): this {
     this.context.lazyLibrarianClient = client
+    return this
+  }
+
+  setPulsarrClient(client?: PulsarrClient): this {
+    this.context.pulsarrClient = client
     return this
   }
 

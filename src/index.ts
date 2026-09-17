@@ -10,6 +10,7 @@ import type { StepContext } from '@/core/step'
 import { LazyLibrarianClient } from '@/lazylibrarian/client'
 import { PostgresClient } from '@/postgres/client'
 import { ProwlarrExtrasClient } from '@/prowlarr/client'
+import { PulsarrClient } from '@/pulsarr/client'
 import { QBittorrentManager } from '@/qbittorrent/client'
 import { SabnzbdManager } from '@/sabnzbd/client'
 import { ServarrManager } from '@/servarr/client'
@@ -111,6 +112,16 @@ class PrepArr {
             ? new LazyLibrarianClient({
                 url: this.config.services.lazylibrarian.url,
                 apiKey: this.config.services.lazylibrarian.apiKey ?? '',
+              })
+            : undefined,
+        )
+        .setPulsarrClient(
+          // Same reasoning as LazyLibrarian: built in either mode, opens
+          // nothing until a call is made.
+          this.config.services?.pulsarr?.url
+            ? new PulsarrClient({
+                url: this.config.services.pulsarr.url,
+                apiKey: this.config.services.pulsarr.apiKey ?? '',
               })
             : undefined,
         )
