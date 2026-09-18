@@ -30,3 +30,23 @@ const NON_SERVARR_TYPES = new Set([
 export function hasServarrApi(type: string | undefined): boolean {
   return !NON_SERVARR_TYPES.has(type ?? '')
 }
+
+/**
+ * Types that keep no state in Postgres and so need no credentials for it.
+ *
+ * Deliberately a separate list from NON_SERVARR_TYPES rather than a reuse of
+ * it: exposing no Servarr API and keeping no Postgres state are different
+ * questions, and Bazarr answers them differently -- it has no Servarr API but
+ * does store its configuration in Postgres. Tdarr is here because it carries
+ * its own database and never sees these credentials at all.
+ */
+const NON_POSTGRES_TYPES = new Set(['qbittorrent', 'tdarr'])
+
+/**
+ * An absent type counts as needing Postgres, for the same reason an absent
+ * type counts as a Servarr app: the default is one, and answering false would
+ * skip a check that a configuration missing its type most needs.
+ */
+export function usesPostgres(type: string | undefined): boolean {
+  return !NON_POSTGRES_TYPES.has(type ?? '')
+}

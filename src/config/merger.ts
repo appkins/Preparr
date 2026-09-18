@@ -1,4 +1,4 @@
-import { hasServarrApi } from './deployment'
+import { hasServarrApi, usesPostgres } from './deployment'
 import type { Config } from './schema'
 
 /**
@@ -89,10 +89,8 @@ export function cleanConfig(config: Partial<Config>): Partial<Config> {
  */
 export function validateRequiredFields(config: Partial<Config>): string[] {
   const errors: string[] = []
-  const isQbittorrentDeployment = config.servarr?.type === 'qbittorrent'
-
   // Check required fields
-  if (!isQbittorrentDeployment && !config.postgres?.password) {
+  if (usesPostgres(config.servarr?.type) && !config.postgres?.password) {
     errors.push('postgres.password is required')
   }
 

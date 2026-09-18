@@ -369,6 +369,17 @@ describe('validateRequiredFields', () => {
     expect(errors).toContain('postgres.password is required')
   })
 
+  test('does not require a postgres password for tdarr', () => {
+    const config: Partial<Config> = {
+      servarr: {
+        type: 'tdarr',
+      },
+    }
+
+    const errors = validateRequiredFields(config)
+    expect(errors).not.toContain('postgres.password is required')
+  })
+
   test('detects missing servarr admin password', () => {
     const config: Partial<Config> = {
       postgres: {
