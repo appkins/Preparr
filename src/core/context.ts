@@ -7,6 +7,7 @@ import type { PulsarrClient } from '@/pulsarr/client'
 import type { QBittorrentManager } from '@/qbittorrent/client'
 import type { SabnzbdManager } from '@/sabnzbd/client'
 import type { ServarrManager } from '@/servarr/client'
+import type { TdarrClient } from '@/tdarr/client'
 import type { StepContext } from './step'
 
 export class ContextBuilder {
@@ -62,6 +63,11 @@ export class ContextBuilder {
     return this
   }
 
+  setTdarrClient(client?: TdarrClient): this {
+    this.context.tdarrClient = client
+    return this
+  }
+
   setBazarrClient(client?: BazarrManager): this {
     this.context.bazarrClient = client
     return this
@@ -85,10 +91,11 @@ export class ContextBuilder {
       !this.context.qbittorrentClient &&
       !this.context.sabnzbdClient &&
       !this.context.lazyLibrarianClient &&
-      !this.context.pulsarrClient
+      !this.context.pulsarrClient &&
+      !this.context.tdarrClient
     ) {
       throw new Error(
-        'At least one of Servarr, Bazarr, qBittorrent, SABnzbd, LazyLibrarian or Pulsarr client is required',
+        'At least one of Servarr, Bazarr, qBittorrent, SABnzbd, LazyLibrarian, Pulsarr or Tdarr client is required',
       )
     }
     if (!this.context.servarrType) {

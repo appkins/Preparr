@@ -33,6 +33,7 @@ describe('Configuration Schema Validation', () => {
       { type: 'radarr', url: 'http://radarr:7878', adminPassword: 'pass' },
       { type: 'prowlarr', url: 'http://prowlarr:9696', adminPassword: 'pass' },
       { type: 'qbittorrent', adminPassword: 'pass' }, // No URL required for qbittorrent
+      { type: 'tdarr' }, // Reached through services.tdarr; no Servarr URL or admin user
     ]
 
     for (const config of configs) {
@@ -136,5 +137,41 @@ describe('naming config field names match the Servarr APIs', () => {
     const result = AppConfigSchema.safeParse({ naming: { seriesFolderFormat: format } })
 
     expect(result.data?.naming?.seriesFolderFormat).toBe(format)
+  })
+})
+
+describe('tdarr configuration', () => {
+  test('an exported flow file parses as a flow, id and all', async () => {
+    const { TdarrConfigSchema } = await import('./schema')
+    const parsed = TdarrConfigSchema.parse({
+      flows: [
+        {
+          _id: 'hevc10Bit',
+          name: 'HEVC 10-bit',
+          priority: 1,
+          flowPlugins: [{ id: 'input', pluginName: 'inputFile', inputsDB: {} }],
+          flowEdges: [{ id: 'e', source: 'input', sourceHandle: '1', target: 'x' }],
+          isUiLocked: false,
+        },
+      ],
+      libraries: [
+        { name: 'Movies', folder: '/data/movies', flow: 'HEVC 10-bit', scannerThreadCount: 4 },
+      ],
+      nodes: [{ name: 'gpu', workerLimits: { transcodegpu: 1 } }],
+    })
+
+    expect(parsed.flows[0]?._id).toBe('hevc10Bit')
+    expect(parsed.flows[0]?.isUiLocked).toBe(false)
+    expect(parsed.libraries[0]?.variables).toEqual({})
+    expect((parsed.libraries[0] as Record<string, unknown>).scannerThreadCount).toBe(4)
+    expect(parsed.nodes[0]?.workerLimits?.transcodegpu).toBe(1)
+    expect(parsed.settings).toEqual({})
+  })
+
+  test('a node with a negative worker count is rejected', async () => {
+    const { TdarrNodeSchema } = await import('./schema')
+    expect(
+      TdarrNodeSchema.safeParse({ name: 'x', workerLimits: { transcodecpu: -1 } }).success,
+    ).toBe(false)
   })
 })

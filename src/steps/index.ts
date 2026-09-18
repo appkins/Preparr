@@ -11,6 +11,7 @@ import { PulsarrConnectivityStep } from './connectivity/pulsarr-connectivity'
 import { QBittorrentConnectivityStep } from './connectivity/qbittorrent-connectivity'
 import { SabnzbdConnectivityStep } from './connectivity/sabnzbd-connectivity'
 import { ServarrConnectivityStep } from './connectivity/servarr-connectivity'
+import { TdarrConnectivityStep } from './connectivity/tdarr-connectivity'
 import { BazarrConfigFileStep } from './infrastructure/bazarr-config-file'
 import { PostgresDatabasesStep } from './infrastructure/postgres-databases'
 import { PostgresUsersStep } from './infrastructure/postgres-users'
@@ -22,6 +23,11 @@ import { LazyLibrarianSettingsStep } from './integrations/lazylibrarian-settings
 import { PulsarrInstancesStep } from './integrations/pulsarr-instances'
 import { QBittorrentConfigStep } from './integrations/qbittorrent-config'
 import { SabnzbdConfigStep } from './integrations/sabnzbd-config'
+import { TdarrFlowsStep } from './integrations/tdarr-flows'
+import { TdarrLibrariesStep } from './integrations/tdarr-libraries'
+import { TdarrNodesStep } from './integrations/tdarr-nodes'
+import { TdarrSettingsStep } from './integrations/tdarr-settings'
+import { TdarrVariablesStep } from './integrations/tdarr-variables'
 import { ApplicationsStep } from './servarr/applications'
 import { CustomFormatsStep } from './servarr/custom-formats'
 import { DownloadClientsStep } from './servarr/download-clients'
@@ -73,6 +79,12 @@ export const allSteps: ConfigurationStep[] = [
   new LazyLibrarianSettingsStep(),
   new PulsarrConnectivityStep(),
   new PulsarrInstancesStep(),
+  new TdarrConnectivityStep(),
+  new TdarrSettingsStep(),
+  new TdarrVariablesStep(),
+  new TdarrFlowsStep(),
+  new TdarrLibrariesStep(),
+  new TdarrNodesStep(),
   // Bazarr
   new BazarrIntegrationStep(),
   new BazarrLanguagesStep(),

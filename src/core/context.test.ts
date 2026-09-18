@@ -175,3 +175,49 @@ test('a Pulsarr-only deployment is a complete context', () => {
 
   expect(context.pulsarrClient).toBeDefined()
 })
+
+test('accepts a tdarr client as the only service client', () => {
+  // Tdarr is not a Servarr app and has no Servarr API to build a client
+  // for; a deployment that configures only Tdarr must still be a complete
+  // context, as Pulsarr and LazyLibrarian are.
+  const config = {
+    postgres: {
+      host: 'localhost',
+      port: 5432,
+      username: 'postgres',
+      password: '',
+      database: 'servarr',
+      logDatabaseEnabled: false,
+      skipProvisioning: true,
+    },
+    servarr: { type: 'tdarr', adminUser: 'admin', authenticationMethod: 'forms' },
+    services: { tdarr: { url: 'http://localhost:8265' } },
+    app: {
+      prowlarrSync: false,
+      rootFolders: [],
+      qualityProfiles: [],
+      downloadClients: [],
+      applications: [],
+      customFormats: [],
+      releaseProfiles: [],
+      qualityDefinitions: [],
+      tdarr: { settings: {}, variables: {}, flows: [], libraries: [], nodes: [] },
+    },
+    health: { port: 8080 },
+    logLevel: 'info',
+    logFormat: 'json',
+    configPath: '/config/tdarr.json',
+    configWatch: true,
+    configReconcileInterval: 60,
+  } as unknown as Config
+
+  const context = new ContextBuilder()
+    .setConfig(config)
+    .setServarrType('tdarr')
+    .setPostgresClient({} as unknown as import('@/postgres/client').PostgresClient)
+    .setTdarrClient({} as unknown as import('@/tdarr/client').TdarrClient)
+    .setExecutionMode('sidecar')
+    .build()
+
+  expect(context.tdarrClient).toBeDefined()
+})

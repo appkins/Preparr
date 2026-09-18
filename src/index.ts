@@ -15,6 +15,7 @@ import { QBittorrentManager } from '@/qbittorrent/client'
 import { SabnzbdManager } from '@/sabnzbd/client'
 import { ServarrManager } from '@/servarr/client'
 import { allSteps } from '@/steps'
+import { TdarrClient } from '@/tdarr/client'
 import { toError } from '@/utils/errors'
 import { logger } from '@/utils/logger'
 
@@ -122,6 +123,16 @@ class PrepArr {
             ? new PulsarrClient({
                 url: this.config.services.pulsarr.url,
                 apiKey: this.config.services.pulsarr.apiKey ?? '',
+              })
+            : undefined,
+        )
+        .setTdarrClient(
+          // Same reasoning again: built in either mode, opens nothing until
+          // a call is made.
+          this.config.services?.tdarr?.url
+            ? new TdarrClient({
+                url: this.config.services.tdarr.url,
+                apiKey: this.config.services.tdarr.apiKey,
               })
             : undefined,
         )

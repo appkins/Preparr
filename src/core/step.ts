@@ -7,6 +7,7 @@ import type { PulsarrClient } from '@/pulsarr/client'
 import type { QBittorrentManager } from '@/qbittorrent/client'
 import type { SabnzbdManager } from '@/sabnzbd/client'
 import type { ServarrManager } from '@/servarr/client'
+import type { TdarrClient } from '@/tdarr/client'
 import { toError } from '@/utils/errors'
 import { logger } from '@/utils/logger'
 
@@ -20,6 +21,7 @@ export interface StepContext {
   sabnzbdClient?: SabnzbdManager | undefined
   lazyLibrarianClient?: LazyLibrarianClient | undefined
   pulsarrClient?: PulsarrClient | undefined
+  tdarrClient?: TdarrClient | undefined
   prowlarrExtrasClient?: ProwlarrExtrasClient | undefined
   bazarrClient?: BazarrManager | undefined
   executionMode: 'init' | 'sidecar'

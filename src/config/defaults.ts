@@ -63,6 +63,8 @@ export const envMapping = {
   LAZYLIBRARIAN_API_KEY: 'services.lazylibrarian.apiKey',
   PULSARR_URL: 'services.pulsarr.url',
   PULSARR_API_KEY: 'services.pulsarr.apiKey',
+  TDARR_URL: 'services.tdarr.url',
+  TDARR_API_KEY: 'services.tdarr.apiKey',
 
   PROWLARR_URL: 'services.prowlarr.url',
   PROWLARR_API_KEY: 'services.prowlarr.apiKey',

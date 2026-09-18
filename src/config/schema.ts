@@ -34,6 +34,7 @@ export const ServarrConfigSchema = z
         'sabnzbd',
         'lazylibrarian',
         'pulsarr',
+        'tdarr',
         'auto',
       ])
       .default('auto'),
@@ -292,6 +293,120 @@ export const PulsarrConfigSchema = z.object({
   radarr: z.array(PulsarrRadarrInstanceSchema).default([]),
 })
 
+/**
+ * Tdarr, which transcodes a library in place according to a flow.
+ *
+ * Everything Tdarr keeps lives in its own database behind one generic
+ * endpoint: libraries, flows, the user variables flows read, the global
+ * settings and each node's worker limits. The server takes what it is given
+ * and fills nothing in, so the shapes here are Tdarr's own document shapes,
+ * declared sparsely -- only what is worth pinning is compared, and only that
+ * is written.
+ */
+
+/**
+ * A flow, in the shape Tdarr exports one: a JSON file from the flow editor's
+ * "Export" drops in here unchanged. `_id` is honoured when present so that
+ * libraries can name it and the file can be re-imported without creating a
+ * second copy; without one the flow is matched by name and given an id on
+ * first creation.
+ */
+export const TdarrFlowSchema = z
+  .object({
+    _id: z.string().optional(),
+    name: z.string().min(1),
+    priority: z.number().optional(),
+    flowPlugins: z.array(z.record(z.string(), z.unknown())).default([]),
+    flowEdges: z.array(z.record(z.string(), z.unknown())).default([]),
+  })
+  .passthrough()
+
+/**
+ * A library. Matched by name, since Tdarr assigns the id at creation.
+ *
+ * Only the fields that decide what the library does are named. Anything else
+ * Tdarr's library document carries -- scannerThreadCount, containerFilter,
+ * holdNewFiles and the rest -- passes through under its own name. `flow` and
+ * `variables` are this configuration's, not Tdarr's, and are translated
+ * rather than written.
+ */
+export const TdarrLibrarySchema = z
+  .object({
+    name: z.string().min(1),
+    folder: z.string().min(1),
+
+    /** Where working files go while a transcode runs. */
+    cache: z.string().optional(),
+
+    /** Where finished files go instead of replacing the original. */
+    output: z.string().optional(),
+
+    /** The flow to run, by name or id. Unset leaves the transcode mode alone. */
+    flow: z.string().optional(),
+
+    folderWatching: z.boolean().optional(),
+    useFsEvents: z.boolean().optional(),
+    scanOnStart: z.boolean().optional(),
+    scheduledScanFindNew: z.boolean().optional(),
+    processLibrary: z.boolean().optional(),
+    processTranscodes: z.boolean().optional(),
+    processHealthChecks: z.boolean().optional(),
+    foldersToIgnore: z.string().optional(),
+    container: z.string().optional(),
+
+    /** Order among libraries; Tdarr numbers them from zero. */
+    priority: z.number().optional(),
+
+    /** Variables scoped to this library: {{{args.userVariables.library.<key>}}}. */
+    variables: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).default({}),
+  })
+  .passthrough()
+
+export const TdarrWorkerLimitsSchema = z.object({
+  transcodecpu: z.number().int().min(0).optional(),
+  transcodegpu: z.number().int().min(0).optional(),
+  healthcheckcpu: z.number().int().min(0).optional(),
+  healthcheckgpu: z.number().int().min(0).optional(),
+})
+
+/**
+ * A node's server-side settings, matched by node name.
+ *
+ * A node's environment seeds its worker counts once, on first registration;
+ * after that the server's copy wins, which is why they are reconciled here
+ * rather than left to the Deployment. A node that is not connected is
+ * configured in the server's record for that name, which it reads back when
+ * it does connect.
+ */
+export const TdarrNodeSchema = z.object({
+  name: z.string().min(1),
+  workerLimits: TdarrWorkerLimitsSchema.optional(),
+  nodePaused: z.boolean().optional(),
+  gpuSelect: z.string().optional(),
+  nodeTags: z.string().optional(),
+  allowGpuDoCpu: z.boolean().optional(),
+  maxGpuWorkers: z.number().int().min(0).optional(),
+  processPriority: z.enum(['high', 'above normal', 'normal', 'below normal', 'low']).optional(),
+  priority: z.number().optional(),
+  deleteCacheAnyStageError: z.boolean().optional(),
+  scheduleEnabled: z.boolean().optional(),
+
+  /** Library names this node must not take work from. Declaring it declares the whole list. */
+  librariesToNotProcess: z.array(z.string()).optional(),
+})
+
+export const TdarrConfigSchema = z.object({
+  /** Global settings, by Tdarr's own key names; compared on the keys given. */
+  settings: z.record(z.string(), z.unknown()).default({}),
+
+  /** Global variables: {{{args.userVariables.global.<key>}}}. */
+  variables: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).default({}),
+
+  flows: z.array(TdarrFlowSchema).default([]),
+  libraries: z.array(TdarrLibrarySchema).default([]),
+  nodes: z.array(TdarrNodeSchema).default([]),
+})
+
 export const ServiceIntegrationSchema = z.object({
   lazylibrarian: z
     .object({
@@ -300,6 +415,14 @@ export const ServiceIntegrationSchema = z.object({
     })
     .optional(),
   pulsarr: z
+    .object({
+      url: z.string(),
+      apiKey: z.string().optional(),
+    })
+    .optional(),
+  // Only needed when Tdarr's own auth is switched on; without it every
+  // request is accepted and the key is simply not sent.
+  tdarr: z
     .object({
       url: z.string(),
       apiKey: z.string().optional(),
@@ -731,6 +854,7 @@ export const AppConfigSchema = z.object({
   sabnzbd: SabnzbdConfigSchema,
   lazylibrarian: LazyLibrarianConfigSchema.optional(),
   pulsarr: PulsarrConfigSchema.optional(),
+  tdarr: TdarrConfigSchema.optional(),
 
   // Tag labels to ensure exist. Anything referenced by an indexer proxy or by
   // indexerTags is created whether or not it is also listed here.
@@ -799,6 +923,11 @@ export type CustomFormat = z.infer<typeof CustomFormatSchema>
 export type ImportList = z.infer<typeof ImportListSchema>
 export type LazyLibrarianConfig = z.infer<typeof LazyLibrarianConfigSchema>
 export type PulsarrConfig = z.infer<typeof PulsarrConfigSchema>
+export type TdarrConfig = z.infer<typeof TdarrConfigSchema>
+export type TdarrFlow = z.infer<typeof TdarrFlowSchema>
+export type TdarrLibrary = z.infer<typeof TdarrLibrarySchema>
+export type TdarrNode = z.infer<typeof TdarrNodeSchema>
+export type TdarrWorkerLimits = z.infer<typeof TdarrWorkerLimitsSchema>
 export type FormatItem = z.infer<typeof FormatItemSchema>
 export type QualityProfile = z.infer<typeof QualityProfileSchema>
 export type ReleaseProfileTerm = z.infer<typeof ReleaseProfileTermSchema>
